@@ -147,30 +147,120 @@ html.native-high-contrast .dash-cards { border-color: var(--line-strong); }
 .dash-card-v .usage-cost-info { margin-inline-start: 3px; }
 
 /* Potential savings: each row's bar is that session's Opus cost; the solid part is
-   what Sonnet would have charged, the hatched part is the money saved. */
-.dash-savings { flex: none; display: grid; gap: 14px; padding: 16px 18px; border: 1px solid rgba(var(--overlay-rgb), 0.08); border-radius: 12px; background: rgba(var(--overlay-rgb), 0.03); }
-.dash-savings-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 16px; }
-.dash-savings-title { font-size: 13px; font-weight: 600; }
-.dash-savings-sub { margin-top: 3px; font-size: 12px; color: var(--muted); }
-.dash-savings-total { font-family: var(--display-font, inherit); font-size: 26px; font-weight: 650; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; color: var(--success); }
-.dash-savings-list { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
-.dash-savings-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; }
-.dash-savings-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.dash-savings-amount { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--success); }
-.dash-savings-bar { grid-column: 1 / -1; display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: rgba(var(--overlay-rgb), 0.05); }
-.dash-savings-bar-track { display: flex; height: 100%; transform-origin: left center; animation: dash-savings-grow 420ms cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
-.dash-savings-bar-kept { height: 100%; background: rgba(var(--overlay-rgb), 0.28); }
-.dash-savings-bar-saved { height: 100%; background: repeating-linear-gradient(135deg, rgba(var(--success-rgb), 0.9) 0 3px, rgba(var(--success-rgb), 0.45) 3px 6px); }
+   what Sonnet would have charged, the hatched part is the money saved.
+   First data plays one choreographed entrance: chunks rise out of a 4px blur 100ms
+   apart, the total rolls in like an odometer, and each bar fills at its Opus cost
+   before the saved part wipes in from the right. Later refreshes redraw still. */
+.dash-savings {
+  --savings-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* One accent: the app's success green deepened toward emerald, so it still follows the theme. */
+  --savings-accent: color-mix(in oklab, var(--success) 55%, #2fd08a);
+  --savings-hatch: repeating-linear-gradient(135deg, color-mix(in oklab, var(--savings-accent) 95%, transparent) 0 3px, color-mix(in oklab, var(--savings-accent) 40%, transparent) 3px 6px);
+  --mx: 80%; --my: 0%;
+  position: relative; isolation: isolate; overflow: hidden;
+  flex: none; display: grid; gap: 16px; padding: 18px 20px 16px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in oklab, var(--savings-accent) 14%, transparent), transparent 55%),
+    linear-gradient(180deg, rgba(var(--overlay-rgb), 0.07), rgba(var(--overlay-rgb), 0.02));
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.12),
+    0 18px 40px -24px rgba(var(--panel-rgb), 0.6);
+}
+/* Glass catching light: a cursor-following highlight on the rim and, faintly, the pane. */
+.dash-savings::before,
+.dash-savings::after { content: ""; position: absolute; pointer-events: none; opacity: 0; transition: opacity 200ms ease-out; }
+.dash-savings::before {
+  inset: -1px; border-radius: inherit; padding: 1px; z-index: 1;
+  background: radial-gradient(220px circle at var(--mx) var(--my), rgba(255, 255, 255, 0.55), color-mix(in oklab, var(--savings-accent) 35%, transparent) 35%, transparent 70%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.dash-savings::after {
+  inset: 0; z-index: -1;
+  background: radial-gradient(360px circle at var(--mx) var(--my), rgba(255, 255, 255, 0.05), transparent 65%);
+}
+@media (hover: hover) {
+  .dash-savings:hover::before,
+  .dash-savings:hover::after { opacity: 1; }
+}
+
+.dash-savings-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 20px; }
+.dash-savings-title { font-family: var(--display-font, inherit); font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+.dash-savings-sub { margin-top: 4px; max-width: 64ch; font-size: 12px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.dash-savings-total {
+  display: inline-flex; font-family: var(--display-font, inherit); font-size: 32px; font-weight: 650; line-height: 1;
+  letter-spacing: -0.035em; font-variant-numeric: tabular-nums; color: var(--savings-accent);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+}
+/* Odometer: each digit is a reel of 0-9 twice, so it spins a full turn before landing. */
+.dash-savings-digit { position: relative; display: inline-block; height: 1em; overflow: hidden; }
+.dash-savings-reel { display: flex; flex-direction: column; transition: transform 1400ms var(--savings-out); transition-delay: var(--d, 0ms); }
+.dash-savings-reel span { height: 1em; line-height: 1; }
+.dash-savings-digit-ghost { visibility: hidden; }
+.dash-savings-digit .dash-savings-reel { position: absolute; inset: 0 auto auto 0; }
+
+.dash-savings-list { display: grid; gap: 4px; margin: 0 -10px; padding: 0; list-style: none; }
+.dash-savings-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 16px; align-items: center;
+  padding: 8px 10px; border-radius: 10px;
+  transition: background-color 150ms ease-out;
+}
+@media (hover: hover) {
+  .dash-savings-row:hover { background-color: rgba(var(--overlay-rgb), 0.05); }
+  .dash-savings-row:hover .dash-savings-bar-saved::after { filter: brightness(1.18) saturate(1.1); }
+}
+.dash-savings-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+.dash-savings-amount { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--savings-accent); }
+.dash-savings-bar { grid-column: 1 / -1; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(var(--overlay-rgb), 0.05); box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.18); }
+.dash-savings-bar-track { display: flex; height: 100%; border-radius: 4px; overflow: hidden; transform-origin: left center; }
+.dash-savings-bar-kept { height: 100%; background: linear-gradient(180deg, rgba(var(--overlay-rgb), 0.38), rgba(var(--overlay-rgb), 0.24)); }
+/* The saved part starts as Opus spend (grey) and is replaced by green from the right. */
+.dash-savings-bar-saved { position: relative; height: 100%; background: linear-gradient(180deg, rgba(var(--overlay-rgb), 0.38), rgba(var(--overlay-rgb), 0.24)); }
+.dash-savings-bar-saved::after {
+  content: ""; position: absolute; inset: 0; transform-origin: right center;
+  background: var(--savings-hatch); background-size: 8.5px 8.5px;
+  transition: filter 150ms ease-out;
+}
+
+.dash-savings-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .dash-savings-legend { display: flex; gap: 16px; font-size: 11px; color: var(--muted); }
 .dash-savings-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.dash-savings-legend i { width: 10px; height: 6px; border-radius: 2px; background: rgba(var(--overlay-rgb), 0.28); }
-.dash-savings-legend i.saved { background: repeating-linear-gradient(135deg, rgba(var(--success-rgb), 0.9) 0 3px, rgba(var(--success-rgb), 0.45) 3px 6px); }
-.dash-savings-note { font-size: 12px; color: var(--muted); }
-.dash-savings-skeleton { height: 14px; border-radius: 4px; background: rgba(var(--overlay-rgb), 0.06); }
-.dash-savings-skeleton.wide { height: 26px; width: 40%; }
-@keyframes dash-savings-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@media (prefers-reduced-motion: reduce) {
-  :root:not([data-reduce-motion="off"]) .dash-savings-bar-track { animation: none; }
+.dash-savings-legend i { width: 12px; height: 8px; border-radius: 2px; background: rgba(var(--overlay-rgb), 0.32); }
+.dash-savings-legend i.saved { background: var(--savings-hatch); background-size: 8.5px 8.5px; }
+.dash-savings-note { font-size: 12px; line-height: 1.45; color: var(--muted); }
+.dash-savings-empty { display: flex; align-items: center; gap: 12px; }
+.dash-savings-empty svg { flex: none; width: 28px; height: 28px; color: var(--savings-accent); opacity: 0.85; }
+
+.dash-savings-skeleton {
+  height: 12px; border-radius: 6px;
+  background: linear-gradient(90deg, rgba(var(--overlay-rgb), 0.05) 0%, rgba(var(--overlay-rgb), 0.11) 50%, rgba(var(--overlay-rgb), 0.05) 100%);
+  background-size: 200% 100%; animation: dash-savings-shimmer 1.4s ease-in-out infinite;
 }
-:root[data-reduce-motion="on"] .dash-savings-bar-track,
-.dash-savings.is-settled .dash-savings-bar-track { animation: none; }
+.dash-savings-skeleton.short { width: 55%; }
+.dash-savings-skeleton.wide { height: 30px; width: 120px; border-radius: 8px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduce-motion="on"]) .dash-savings.is-entering .dash-savings-chunk { animation: dash-savings-chunk-in 300ms ease-out both; animation-delay: calc(var(--c, 0) * 100ms); }
+  :root:not([data-reduce-motion="on"]) .dash-savings.is-entering .dash-savings-bar-track { animation: dash-savings-grow 520ms var(--savings-out) both; animation-delay: calc(var(--c, 0) * 100ms + 120ms); }
+  :root:not([data-reduce-motion="on"]) .dash-savings.is-entering .dash-savings-bar-saved::after { animation: dash-savings-wipe 560ms var(--savings-out) both; animation-delay: calc(var(--c, 0) * 100ms + 640ms); }
+}
+/* Reduced motion: a plain cross-fade, no movement, blur or reel spin. */
+:root[data-reduce-motion="on"] .dash-savings.is-entering .dash-savings-chunk { animation: dash-savings-fade 200ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduce-motion="off"]) .dash-savings.is-entering .dash-savings-chunk { animation: dash-savings-fade 200ms ease-out both; }
+  :root:not([data-reduce-motion="off"]) .dash-savings-skeleton { animation: none; }
+}
+:root[data-reduce-motion="on"] .dash-savings-skeleton { animation: none; }
+
+@keyframes dash-savings-chunk-in { from { opacity: 0; filter: blur(4px); transform: translateY(12px); } to { opacity: 1; filter: blur(0); transform: none; } }
+@keyframes dash-savings-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dash-savings-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes dash-savings-wipe { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes dash-savings-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
