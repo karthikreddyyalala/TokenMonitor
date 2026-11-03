@@ -137,6 +137,7 @@ const {
 } = require('../shared/collector');
 const { analyzeSavings } = require('../shared/costOptimizer');
 const { DEFAULT_THRESHOLD: AUTO_DOWNGRADE_THRESHOLD, runAutoDowngrade } = require('../shared/autoDowngrade');
+const { createRunawayDetector } = require('../shared/runawayDetector');
 const {
   antigravitySyncLockPath,
   repairAntigravitySyncLock
@@ -741,6 +742,7 @@ function defaultSettings() {
     wslScanEnabled: parseBoolean(process.env.TOKEN_MONITOR_WSL_SCAN, true),
     exportAutoEnabled: false,
     autoDowngradeEnabled: false,
+    runawayAlertsEnabled: false,
     exportDir: '',
     exportIntervalMs: 60 * 1000,
     collectionMode: 'live',
@@ -3240,6 +3242,31 @@ function checkAutoDowngrade() {
     model: result.model || translate(locale, 'autoDowngrade.defaultModel')
   });
   if (Notification.isSupported()) new Notification({ title, body }).show();
+}
+// Samples today's sessions once a minute and warns when one burns tokens far faster than usual.
+const runawayDetector = createRunawayDetector();
+function checkRunawaySessions() {
+  if (settings?.runawayAlertsEnabled !== true || !latestStats) return;
+  const now = Date.now();
+  for (const session of completeLocalSyncStats(latestStats).periods?.today?.sessions || []) {
+    const alert = runawayDetector.observe({
+      key: `${session.client}:${session.sessionId}`,
+      label: session.title || session.sessionId,
+      t: now,
+      freshTokens: (session.inputTokens || 0) + (session.outputTokens || 0) + (session.cacheWriteTokens || 0),
+      turns: session.messageCount || 0
+    });
+    if (!alert || !Notification.isSupported()) continue;
+    const locale = trayMenuLocale();
+    new Notification({
+      title: translate(locale, `runaway.${alert.reason}Title`),
+      body: translate(locale, `runaway.${alert.reason}Body`, {
+        session: alert.label,
+        ratio: Math.round(alert.ratio),
+        rate: Math.round(alert.tokensPerMinute / 1000)
+      })
+    }).show();
+  }
 }
 let statsPushSource = null;
 let statsPushRevision = 0;
@@ -7937,6 +7964,7 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) app.dock.setIcon(APP_ICON_PATH);
   ensureSettingsLoaded();
   setInterval(checkAutoDowngrade, 60 * 1000).unref?.();
+  setInterval(checkRunawaySessions, 60 * 1000).unref?.();
   powerMonitor.on('lock-screen', () => notchController?.setLocked(true));
   powerMonitor.on('unlock-screen', () => notchController?.setLocked(false));
   void sessionProxy.apply();
