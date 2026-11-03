@@ -184,4 +184,4 @@ async function priceLocalSessionDetail(detail, options = {}) {
   return detail;
 }
 
-module.exports = { buildLocalUsageView, readLocalUsageView, resolveLocalUsagePricing, priceLocalSessionDetail };
+module.exports = { buildLocalUsageView, readLocalUsageView, resolveLocalUsagePricing, priceLocalSessionDetail, estimatedCost };
