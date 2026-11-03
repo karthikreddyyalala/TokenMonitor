@@ -555,10 +555,75 @@ function savingsNode(tag, className, text) {
   return node;
 }
 
+// The signature moment: each digit of the total spins a full turn on its own reel
+// and lands right to left, like a fuel-pump counter. Screen readers get the plain value.
+function rollSavingsTotal(node, text, animate) {
+  node.setAttribute('aria-label', text);
+  if (!animate || prefersReducedMotion()) {
+    node.textContent = text;
+    return;
+  }
+  const chars = [...text];
+  const reels = [];
+  node.replaceChildren(...chars.map((ch, index) => {
+    if (!/\d/.test(ch)) return savingsNode('span', null, ch);
+    const digit = savingsNode('span', 'dash-savings-digit');
+    digit.setAttribute('aria-hidden', 'true');
+    const reel = savingsNode('span', 'dash-savings-reel');
+    for (let i = 0; i < 20; i += 1) reel.append(savingsNode('span', null, String(i % 10)));
+    reel.style.setProperty('--d', `${250 + (chars.length - 1 - index) * 70}ms`);
+    digit.append(savingsNode('span', 'dash-savings-digit-ghost', ch), reel);
+    reels.push([reel, 10 + Number(ch)]);
+    return digit;
+  }));
+  // Two frames so the reels paint at 0 before the transition starts.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    for (const [reel, stop] of reels) reel.style.transform = `translateY(-${stop}em)`;
+  }));
+}
+
+function trackSavingsLight(el) {
+  let frame = 0;
+  el.addEventListener('pointermove', (event) => {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      const box = el.getBoundingClientRect();
+      el.style.setProperty('--mx', `${event.clientX - box.left}px`);
+      el.style.setProperty('--my', `${event.clientY - box.top}px`);
+    });
+  });
+}
+trackSavingsLight(els.savings);
+
+function savingsEmptyIcon() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.5');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const d of ['M12 3l7 3v5c0 4.5-3 8.3-7 9.5C8 19.3 5 15.5 5 11V6l7-3z', 'M9 12l2 2 4-4']) {
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    svg.append(path);
+  }
+  return svg;
+}
+
 // state.savings: undefined while loading, { error: true } on failure, else analyzeSavings() output.
+let savingsRenderKey = null;
+
 function renderSavings() {
   const el = els.savings;
   const savings = state.savings;
+  // Other dashboard redraws must not rebuild the card mid-entrance.
+  const key = JSON.stringify([savings ?? null, state.currency, state.locale]);
+  if (key === savingsRenderKey) return;
+  savingsRenderKey = key;
   el.classList.remove('hidden');
   el.setAttribute('aria-busy', String(savings === undefined));
   const head = savingsNode('div', 'dash-savings-head');
@@ -567,9 +632,10 @@ function renderSavings() {
   head.append(intro);
 
   if (savings === undefined) {
-    intro.append(savingsNode('div', 'dash-savings-skeleton'));
+    intro.append(savingsNode('div', 'dash-savings-sub'));
+    intro.lastChild.append(savingsNode('div', 'dash-savings-skeleton short'));
     head.append(savingsNode('div', 'dash-savings-skeleton wide'));
-    el.replaceChildren(head, savingsNode('div', 'dash-savings-skeleton'), savingsNode('div', 'dash-savings-skeleton'));
+    el.replaceChildren(head, savingsNode('div', 'dash-savings-skeleton'), savingsNode('div', 'dash-savings-skeleton'), savingsNode('div', 'dash-savings-skeleton short'));
     return;
   }
   if (savings.error) {
@@ -581,15 +647,22 @@ function renderSavings() {
     ? savingsNode('div', 'dash-savings-note', t('dashboard.savings.skipped', { models: savings.skippedModels.join(', ') }))
     : null;
   if (!candidates.length || !(savings.totalSavingsUsd > 0)) {
-    el.replaceChildren(head, savingsNode('div', 'dash-savings-note', t('dashboard.savings.none')), ...(skippedNote ? [skippedNote] : []));
+    const empty = savingsNode('div', 'dash-savings-empty');
+    empty.append(savingsEmptyIcon(), savingsNode('div', 'dash-savings-note', t('dashboard.savings.none')));
+    el.replaceChildren(head, empty, ...(skippedNote ? [skippedNote] : []));
     return;
   }
 
+  const entering = !savingsDrawn;
+  savingsDrawn = true;
+  intro.classList.add('dash-savings-chunk');
   intro.append(savingsNode('div', 'dash-savings-sub', t('dashboard.savings.sub', {
     count: candidates.length,
     share: (savings.shareOfSpend * 100).toFixed(savings.shareOfSpend < 0.1 ? 1 : 0)
   })));
-  head.append(savingsNode('div', 'dash-savings-total', formatSavingsMoney(savings.totalSavingsUsd)));
+  const total = savingsNode('div', 'dash-savings-total dash-savings-chunk');
+  total.style.setProperty('--c', '1');
+  head.append(total);
 
   const top = candidates.slice(0, 3);
   const maxCost = Math.max(...top.map((c) => c.currentCostUsd)) || 1;
@@ -597,7 +670,8 @@ function renderSavings() {
   list.setAttribute('aria-label', t('dashboard.savings.top'));
   top.forEach((c, index) => {
     const title = c.title || t('dashboard.savings.untitled');
-    const row = savingsNode('li', 'dash-savings-row');
+    const row = savingsNode('li', 'dash-savings-row dash-savings-chunk');
+    row.style.setProperty('--c', String(2 + index));
     row.setAttribute('aria-label', t('dashboard.savings.rowLabel', {
       title, opus: formatSavingsMoney(c.currentCostUsd), sonnet: formatSavingsMoney(c.cheaperCostUsd), amount: formatSavingsMoney(c.savingsUsd)
     }));
@@ -605,7 +679,6 @@ function renderSavings() {
     bar.setAttribute('aria-hidden', 'true');
     const track = savingsNode('div', 'dash-savings-bar-track');
     track.style.width = `${(c.currentCostUsd / maxCost) * 100}%`;
-    track.style.setProperty('--i', String(index));
     const kept = savingsNode('div', 'dash-savings-bar-kept');
     kept.style.width = `${(c.cheaperCostUsd / c.currentCostUsd) * 100}%`;
     const saved = savingsNode('div', 'dash-savings-bar-saved');
@@ -623,10 +696,13 @@ function renderSavings() {
     item.append(savingsNode('i', cls), document.createTextNode(t(key)));
     legend.append(item);
   }
-  el.replaceChildren(head, list, legend, ...(skippedNote ? [skippedNote] : []));
-  // Bars grow once, on first data; later refreshes redraw in place.
-  el.classList.toggle('is-settled', savingsDrawn);
-  savingsDrawn = true;
+  const foot = savingsNode('div', 'dash-savings-foot dash-savings-chunk');
+  foot.style.setProperty('--c', String(2 + top.length));
+  foot.append(legend, ...(skippedNote ? [skippedNote] : []));
+  el.replaceChildren(head, list, foot);
+  // Entrance plays once, on first data; later refreshes redraw in place.
+  el.classList.toggle('is-entering', entering);
+  rollSavingsTotal(total, formatSavingsMoney(savings.totalSavingsUsd), entering);
 }
 
 async function refreshSavings() {
