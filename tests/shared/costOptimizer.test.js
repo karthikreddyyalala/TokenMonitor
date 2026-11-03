@@ -21,14 +21,17 @@ function session(id, model, { input = 0, output = 0, cacheRead = 0, cacheWrite =
   };
 }
 
+// Periods key sessions by id, as the collector builds them.
+const keyed = (...list) => Object.fromEntries(list.map((s) => [`${s.client}:${s.sessionId}`, s]));
+
 test('re-prices light Opus sessions on Sonnet and skips heavy ones', () => {
   const period = {
-    sessions: [
+    sessions: keyed(
       session('light', 'claude-opus-4', { input: 10_000, output: 1_000, messages: 4 }),
       session('long-chat', 'claude-opus-4', { input: 10_000, output: 1_000, messages: 30 }),
       session('big-answer', 'claude-opus-4', { input: 10_000, output: 9_000, messages: 2 }),
       session('already-sonnet', 'claude-sonnet-4', { input: 10_000, output: 1_000, messages: 2 })
-    ]
+    )
   };
   const result = analyzeSavings(period, { pricing, cheaperModel: 'claude-sonnet-4' });
 
@@ -41,7 +44,7 @@ test('re-prices light Opus sessions on Sonnet and skips heavy ones', () => {
 });
 
 test('never guesses: models without pricing are skipped and reported', () => {
-  const period = { sessions: [session('mystery', 'claude-opus-9', { input: 500, output: 100 })] };
+  const period = { sessions: keyed(session('mystery', 'claude-opus-9', { input: 500, output: 100 })) };
   const result = analyzeSavings(period, { pricing, cheaperModel: 'claude-sonnet-4' });
 
   assert.equal(result.totalSavingsUsd, 0);
@@ -51,5 +54,5 @@ test('never guesses: models without pricing are skipped and reported', () => {
 
 test('handles an empty or missing period', () => {
   assert.equal(analyzeSavings(undefined, { pricing, cheaperModel: 'claude-sonnet-4' }).totalSavingsUsd, 0);
-  assert.equal(analyzeSavings({ sessions: [] }, { pricing, cheaperModel: 'claude-sonnet-4' }).shareOfSpend, 0);
+  assert.equal(analyzeSavings({ sessions: {} }, { pricing, cheaperModel: 'claude-sonnet-4' }).shareOfSpend, 0);
 });

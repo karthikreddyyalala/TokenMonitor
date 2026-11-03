@@ -31,7 +31,7 @@ function analyzeSavings(period, { pricing = {}, cheaperModel, isLight = isLightT
   let totalSpendUsd = 0;
   const cheaperPricing = pricing[cheaperModel];
 
-  for (const session of period?.sessions || []) {
+  for (const session of Object.values(period?.sessions || {})) {
     for (const [model, components] of Object.entries(session.modelTokenComponents || {})) {
       const usage = toUsage(components);
       const current = pricing[model] ? estimatedCost(usage, pricing[model]) : null;

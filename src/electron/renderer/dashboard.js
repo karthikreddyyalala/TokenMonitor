@@ -31,6 +31,7 @@ const els = {
   heatmap: document.getElementById('dashHeatmap'),
   cards: document.getElementById('dashCards'),
   savings: document.getElementById('dashSavings'),
+  xray: document.getElementById('dashXray'),
   empty: document.getElementById('dashEmpty'),
   tooltip: document.getElementById('dashTooltip'),
   stackBtns: Array.from(document.querySelectorAll('[data-control="stack"] .seg-btn')),
@@ -536,6 +537,7 @@ function renderActivity() {
     costValue.append(info);
   }
   balanceStatCards();
+  renderXray();
   renderSavings();
   renderBreakdown();
 }
@@ -595,6 +597,7 @@ function trackSavingsLight(el) {
   });
 }
 trackSavingsLight(els.savings);
+trackSavingsLight(els.xray);
 
 function savingsEmptyIcon() {
   const ns = 'http://www.w3.org/2000/svg';
@@ -715,6 +718,156 @@ async function refreshSavings() {
   render();
 }
 
+// Token X-ray shares the savings card's glass, odometer and entrance; its own
+// moment is the scan bar, revealed left to right under a passing light.
+// state.xray: undefined while loading, { error: true } on failure, else analyzeXray() output.
+const XRAY_PARTS = [
+  ['cacheRead', 'dashboard.xray.partRead'], ['cacheWrite', 'dashboard.xray.partWrite'],
+  ['output', 'dashboard.xray.partOutput'], ['input', 'dashboard.xray.partInput']
+];
+const XRAY_REBUILDS = [['expired', 'dashboard.xray.expired'], ['unexplained', 'dashboard.xray.unexplained'], ['modelSwitch', 'dashboard.xray.modelSwitch']];
+let xrayRenderKey = null;
+let xrayDrawn = false;
+
+const formatXrayShare = (share) => (share > 0 && share < 0.005 ? '<1%' : `${Math.round(share * 100)}%`);
+
+function xrayCopyButton(xray, ratio) {
+  const button = savingsNode('button', 'dash-xray-copy', t('dashboard.xray.copy'));
+  button.type = 'button';
+  button.setAttribute('aria-live', 'polite');
+  let reset = 0;
+  button.addEventListener('click', async () => {
+    clearTimeout(reset);
+    try {
+      await window.tokenMonitor.copyText(t('dashboard.xray.share', { share: formatXrayShare(xray.reReadShare), ratio }));
+      button.textContent = t('dashboard.xray.copied');
+    } catch (error) {
+      console.log(`[dashboard] x-ray copy failed: ${error.message}`);
+      button.textContent = t('dashboard.xray.copyFailed');
+    }
+    reset = setTimeout(() => { button.textContent = t('dashboard.xray.copy'); }, 2000);
+  });
+  return button;
+}
+
+function renderXray() {
+  const el = els.xray;
+  const xray = state.xray;
+  const key = JSON.stringify([xray ?? null, state.currency, state.locale]);
+  if (key === xrayRenderKey) return;
+  xrayRenderKey = key;
+  el.classList.remove('hidden');
+  el.setAttribute('aria-busy', String(xray === undefined));
+  const head = savingsNode('div', 'dash-savings-head');
+  const intro = savingsNode('div');
+  intro.append(savingsNode('div', 'dash-savings-title', t('dashboard.xray.title')));
+  head.append(intro);
+
+  if (xray === undefined) {
+    intro.append(savingsNode('div', 'dash-savings-sub'));
+    intro.lastChild.append(savingsNode('div', 'dash-savings-skeleton short'));
+    head.append(savingsNode('div', 'dash-savings-skeleton wide'));
+    el.replaceChildren(head, savingsNode('div', 'dash-savings-skeleton'), savingsNode('div', 'dash-savings-skeleton'), savingsNode('div', 'dash-savings-skeleton short'));
+    return;
+  }
+  if (xray.error) {
+    el.replaceChildren(head, savingsNode('div', 'dash-savings-note', t('dashboard.xray.error')));
+    return;
+  }
+  if (!(xray.totalUsd > 0)) {
+    const empty = savingsNode('div', 'dash-savings-empty');
+    empty.append(savingsEmptyIcon(), savingsNode('div', 'dash-savings-note', t('dashboard.xray.none')));
+    el.replaceChildren(head, empty);
+    return;
+  }
+
+  const entering = !xrayDrawn;
+  xrayDrawn = true;
+  const ratio = Math.round(xray.readPerWritten).toLocaleString(state.locale);
+  intro.classList.add('dash-savings-chunk');
+  intro.append(savingsNode('div', 'dash-savings-sub', t('dashboard.xray.sub', { total: formatSavingsMoney(xray.totalUsd), sessions: xray.sessionCount })));
+  const headline = savingsNode('div', 'dash-xray-headline dash-savings-chunk');
+  headline.style.setProperty('--c', '1');
+  const total = savingsNode('div', 'dash-savings-total');
+  headline.append(total, savingsNode('div', 'dash-xray-caption', t('dashboard.xray.totalCaption')));
+  head.append(headline);
+
+  const lead = savingsNode('div', 'dash-xray-ratio dash-savings-chunk', t('dashboard.xray.ratio', { ratio }));
+  lead.style.setProperty('--c', '2');
+
+  const scan = savingsNode('div', 'dash-xray-scan dash-savings-chunk');
+  scan.style.setProperty('--c', '3');
+  const bar = savingsNode('div', 'dash-xray-bar');
+  bar.setAttribute('aria-hidden', 'true');
+  const legend = savingsNode('ul', 'dash-xray-legend');
+  for (const [part, labelKey] of XRAY_PARTS) {
+    const { costUsd, share } = xray.parts[part];
+    if (!(costUsd > 0)) continue;
+    const segment = savingsNode('span', `dash-xray-seg ${part}`);
+    segment.style.setProperty('--g', String(share));
+    bar.append(segment);
+    const item = savingsNode('li', `dash-xray-key ${part}`);
+    item.append(savingsNode('i'), savingsNode('span', 'dash-xray-key-label', t(labelKey)),
+      savingsNode('span', 'dash-xray-key-value', formatSavingsMoney(costUsd)), savingsNode('span', 'dash-xray-key-share', formatXrayShare(share)));
+    legend.append(item);
+  }
+  scan.append(bar, legend);
+  const chunks = [head, lead, scan];
+
+  const rebuilds = xray.rebuilds;
+  if (rebuilds && (rebuilds.count > 0 || rebuilds.startContextTokens > 0)) {
+    const audit = savingsNode('div', 'dash-xray-audit dash-savings-chunk');
+    audit.style.setProperty('--c', '4');
+    if (rebuilds.count > 0) {
+      audit.append(savingsNode('div', 'dash-xray-audit-title', t('dashboard.xray.rebuilt', { count: rebuilds.count, cost: formatSavingsMoney(rebuilds.costUsd) })));
+      const stats = savingsNode('dl', 'dash-xray-stats');
+      for (const [kind, labelKey] of XRAY_REBUILDS) {
+        const stat = savingsNode('div', `dash-xray-stat ${kind}`);
+        stat.append(savingsNode('dt', null, t(labelKey)), savingsNode('dd', null, rebuilds[kind].count.toLocaleString(state.locale)));
+        stats.append(stat);
+      }
+      audit.append(stats);
+    }
+    if (rebuilds.startContextTokens > 0) {
+      audit.append(savingsNode('div', 'dash-savings-note', t('dashboard.xray.setup', { tokens: formatCompact(rebuilds.startContextTokens) })));
+    }
+    chunks.push(audit);
+  }
+
+  if (xray.heaviest.length) {
+    const caption = savingsNode('div', 'dash-xray-caption dash-savings-chunk', t('dashboard.xray.heaviest'));
+    caption.style.setProperty('--c', '5');
+    const list = savingsNode('ol', 'dash-savings-list');
+    list.setAttribute('aria-label', t('dashboard.xray.heaviest'));
+    xray.heaviest.forEach((s, index) => {
+      const row = savingsNode('li', 'dash-savings-row dash-savings-chunk');
+      row.style.setProperty('--c', String(6 + index));
+      row.append(savingsNode('span', 'dash-savings-name', s.title || t('dashboard.savings.untitled')), savingsNode('span', 'dash-savings-amount', formatSavingsMoney(s.reReadUsd)));
+      if (s.contextTokens > 0) row.append(savingsNode('span', 'dash-xray-context', t('dashboard.xray.context', { tokens: formatCompact(s.contextTokens) })));
+      list.append(row);
+    });
+    chunks.push(caption, list);
+  }
+
+  const foot = savingsNode('div', 'dash-savings-foot dash-savings-chunk');
+  foot.style.setProperty('--c', String(6 + xray.heaviest.length));
+  foot.append(xrayCopyButton(xray, ratio));
+  if (xray.skippedModels?.length) foot.append(savingsNode('div', 'dash-savings-note', t('dashboard.savings.skipped', { models: xray.skippedModels.join(', ') })));
+  el.replaceChildren(...chunks, foot);
+  el.classList.toggle('is-entering', entering);
+  rollSavingsTotal(total, formatXrayShare(xray.reReadShare), entering);
+}
+
+async function refreshXray() {
+  try {
+    state.xray = await window.tokenMonitor.getXray();
+  } catch (error) {
+    console.log(`[dashboard] x-ray failed: ${error.message}`);
+    state.xray = { error: true };
+  }
+  render();
+}
+
 function renderNow() {
   hideTooltip();
   const hasData = (state.history?.daily || []).length > 0 || (state.history?.monthly || []).length > 0;
@@ -826,6 +979,7 @@ async function refresh() {
     state.motion = state.history ? 'update' : 'entry';
     state.history = await window.tokenMonitor.getDashboardHistory();
     render();
+    void refreshXray();
     void refreshSavings();
   } catch (error) {
     state.motion = 'none';
