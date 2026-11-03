@@ -9885,7 +9885,8 @@ app.whenReady().then(() => {
     if (!win || win !== dashboardWindow || win.isDestroyed()) return;
     if (win.isMinimized()) win.restore();
     // A floating widget would otherwise stay above the dashboard it just opened.
-    win.setAlwaysOnTop(mainWindow?.isAlwaysOnTop() === true, floatingAlwaysOnTopLevel());
+    const widgetFloats = mainWindow?.isAlwaysOnTop() === true;
+    win.setAlwaysOnTop(widgetFloats, floatingAlwaysOnTopLevel());
     win.show();
     win.focus();
   });
