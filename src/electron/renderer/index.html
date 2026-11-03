@@ -834,6 +834,11 @@
               <input id="autoDowngradeInput" type="checkbox" />
               <span class="settings-note settings-item-desc" data-i18n="settings.limits.autoDowngradeDesc">When a Claude limit reaches 80%, new Claude Code sessions use Sonnet. Your model comes back after the limit resets.</span>
             </label>
+            <label class="checkbox-label settings-item">
+              <span class="settings-item-text"><span class="settings-item-title" data-i18n="settings.limits.runawayAlerts">Warn me about runaway sessions</span></span>
+              <input id="runawayAlertsInput" type="checkbox" />
+              <span class="settings-note settings-item-desc" data-i18n="settings.limits.runawayAlertsDesc">Sends a notification when a session burns tokens several times faster than you usually do for a few minutes, or keeps repeating the same step.</span>
+            </label>
             <div class="settings-item">
               <span id="showLimitUsedLabel" class="settings-item-text"><span class="settings-item-title" data-i18n="settings.limits.barsShow">Bars show</span></span>
               <div class="inline-options" role="radiogroup" aria-labelledby="showLimitUsedLabel">
