@@ -136,6 +136,7 @@ const {
   visibleDiagnosticRoots
 } = require('../shared/collector');
 const { analyzeSavings } = require('../shared/costOptimizer');
+const { DEFAULT_THRESHOLD: AUTO_DOWNGRADE_THRESHOLD, runAutoDowngrade } = require('../shared/autoDowngrade');
 const {
   antigravitySyncLockPath,
   repairAntigravitySyncLock
@@ -739,6 +740,7 @@ function defaultSettings() {
     sessionUsageArchiveEnabled: parseBoolean(process.env.TOKEN_MONITOR_SESSION_USAGE_ARCHIVE_ENABLED, true),
     wslScanEnabled: parseBoolean(process.env.TOKEN_MONITOR_WSL_SCAN, true),
     exportAutoEnabled: false,
+    autoDowngradeEnabled: false,
     exportDir: '',
     exportIntervalMs: 60 * 1000,
     collectionMode: 'live',
@@ -3218,6 +3220,26 @@ async function savingsModelPricing(model) {
   } catch (_) {
     return null;
   }
+}
+// ponytail: fixed 80% threshold and a 60s poll; make the threshold a setting if users ask.
+function checkAutoDowngrade() {
+  const limits = deviceRuntimeHandle?.getSnapshot()?.limits || lastCollectedDevice?.limits;
+  const result = runAutoDowngrade({
+    limits,
+    threshold: AUTO_DOWNGRADE_THRESHOLD,
+    enabled: settings?.autoDowngradeEnabled === true,
+    settingsPath: path.join(os.homedir(), '.claude', 'settings.json'),
+    statePath: path.join(app.getPath('userData'), 'auto-downgrade.json')
+  });
+  if (result.action === 'error') console.log(`[auto-downgrade] ${result.error}`);
+  if (result.action !== 'downgraded' && result.action !== 'restored') return;
+  const locale = trayMenuLocale();
+  const title = translate(locale, `autoDowngrade.${result.action}Title`);
+  const body = translate(locale, `autoDowngrade.${result.action}Body`, {
+    percent: Math.round(result.peak?.usedPercent ?? 0),
+    model: result.model || translate(locale, 'autoDowngrade.defaultModel')
+  });
+  if (Notification.isSupported()) new Notification({ title, body }).show();
 }
 let statsPushSource = null;
 let statsPushRevision = 0;
@@ -7914,6 +7936,7 @@ registerPluginScheme(protocol);
 app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) app.dock.setIcon(APP_ICON_PATH);
   ensureSettingsLoaded();
+  setInterval(checkAutoDowngrade, 60 * 1000).unref?.();
   powerMonitor.on('lock-screen', () => notchController?.setLocked(true));
   powerMonitor.on('unlock-screen', () => notchController?.setLocked(false));
   void sessionProxy.apply();
@@ -8096,6 +8119,7 @@ app.whenReady().then(() => {
     assertPluginSkinRequest(event, patch);
     let dotsVisibilityApplied = Promise.resolve();
     applySettingsPatch(patch, (refresh) => { dotsVisibilityApplied = refresh; });
+    if (patch.autoDowngradeEnabled !== undefined) checkAutoDowngrade();
     await latestUsageHost?.transformSettingsApplied?.();
     await dotsVisibilityApplied;
     await finishPluginChange?.();
