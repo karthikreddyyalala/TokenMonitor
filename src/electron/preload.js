@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld('tokenMonitor', {
   deleteDevice: (deviceId) => ipcRenderer.invoke('devices:delete', deviceId),
   getAllTimeSessions: (snapshotId) => ipcRenderer.invoke('stats:allTimeSessions', snapshotId),
   getSavings: (periodKey) => ipcRenderer.invoke('savings:get', periodKey),
+  getXray: () => ipcRenderer.invoke('xray:get'),
   getSessionDetail: (args) => ipcRenderer.invoke('session:getDetail', args),
   getStreamStatus: () => ipcRenderer.invoke('stream:status'),
   getServiceStatus: (options) => ipcRenderer.invoke('serviceStatus:get', options),

@@ -138,6 +138,8 @@ const {
 const { analyzeSavings } = require('../shared/costOptimizer');
 const { DEFAULT_THRESHOLD: AUTO_DOWNGRADE_THRESHOLD, runAutoDowngrade } = require('../shared/autoDowngrade');
 const { createRunawayDetector } = require('../shared/runawayDetector');
+const { analyzeXray, auditClaudeLogs, createHeavySessionWatch } = require('../shared/tokenXray');
+const { claudeSessionRoots } = require('../shared/providers/claude/paths');
 const {
   antigravitySyncLockPath,
   repairAntigravitySyncLock
@@ -743,6 +745,7 @@ function defaultSettings() {
     exportAutoEnabled: false,
     autoDowngradeEnabled: false,
     runawayAlertsEnabled: false,
+    heavySessionAlertsEnabled: false,
     exportDir: '',
     exportIntervalMs: 60 * 1000,
     collectionMode: 'live',
@@ -3213,10 +3216,13 @@ let latestStats = null;
 const SAVINGS_CHEAPER_MODEL = 'claude-sonnet-4-6';
 // ponytail: rates cached for the app's lifetime; add a TTL if prices change mid-session.
 const savingsPricingCache = new Map();
-async function savingsModelPricing(model) {
+async function cachedModelPricing(model) {
   if (savingsPricingCache.has(model)) return savingsPricingCache.get(model);
   try {
-    const pricing = (await lookupModelPricing(model))?.pricing || null;
+    const result = await lookupModelPricing(model);
+    const pricing = result?.pricing
+      ? { ...result.pricing, cacheCreation1hInputTokenCost: result.allRates?.cache_creation_input_token_cost_above_1hr ?? null }
+      : null;
     if (pricing) savingsPricingCache.set(model, pricing);
     return pricing;
   } catch (_) {
@@ -3243,29 +3249,38 @@ function checkAutoDowngrade() {
   });
   if (Notification.isSupported()) new Notification({ title, body }).show();
 }
-// Samples today's sessions once a minute and warns when one burns tokens far faster than usual.
+// Samples today's sessions once a minute and warns when one burns tokens far
+// faster than usual, or has grown so heavy that every message re-reads a lot.
 const runawayDetector = createRunawayDetector();
-function checkRunawaySessions() {
-  if (settings?.runawayAlertsEnabled !== true || !latestStats) return;
+const heavySessionWatch = createHeavySessionWatch();
+function checkLiveSessions() {
+  const runaway = settings?.runawayAlertsEnabled === true;
+  const heavy = settings?.heavySessionAlertsEnabled === true;
+  if ((!runaway && !heavy) || !latestStats) return;
+  const locale = trayMenuLocale();
+  const notify = (titleKey, bodyKey, params) => {
+    if (Notification.isSupported()) new Notification({ title: translate(locale, titleKey), body: translate(locale, bodyKey, params) }).show();
+  };
   const now = Date.now();
-  for (const session of completeLocalSyncStats(latestStats).periods?.today?.sessions || []) {
-    const alert = runawayDetector.observe({
+  for (const session of Object.values(completeLocalSyncStats(latestStats).periods?.today?.sessions || {})) {
+    const label = session.title || session.sessionId;
+    const alert = runaway && runawayDetector.observe({
       key: `${session.client}:${session.sessionId}`,
-      label: session.title || session.sessionId,
+      label,
       t: now,
       freshTokens: (session.inputTokens || 0) + (session.outputTokens || 0) + (session.cacheWriteTokens || 0),
       turns: session.messageCount || 0
     });
-    if (!alert || !Notification.isSupported()) continue;
-    const locale = trayMenuLocale();
-    new Notification({
-      title: translate(locale, `runaway.${alert.reason}Title`),
-      body: translate(locale, `runaway.${alert.reason}Body`, {
-        session: alert.label,
+    if (alert) {
+      notify(`runaway.${alert.reason}Title`, `runaway.${alert.reason}Body`, {
+        session: label,
         ratio: Math.round(alert.ratio),
         rate: Math.round(alert.tokensPerMinute / 1000)
-      })
-    }).show();
+      });
+    }
+    if (heavy && heavySessionWatch(session, now)) {
+      notify('heavySession.title', 'heavySession.body', { session: label, tokens: Math.round(session.contextTokens / 1000) });
+    }
   }
 }
 let statsPushSource = null;
@@ -7964,7 +7979,7 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) app.dock.setIcon(APP_ICON_PATH);
   ensureSettingsLoaded();
   setInterval(checkAutoDowngrade, 60 * 1000).unref?.();
-  setInterval(checkRunawaySessions, 60 * 1000).unref?.();
+  setInterval(checkLiveSessions, 60 * 1000).unref?.();
   powerMonitor.on('lock-screen', () => notchController?.setLocked(true));
   powerMonitor.on('unlock-screen', () => notchController?.setLocked(false));
   void sessionProxy.apply();
@@ -8750,12 +8765,28 @@ app.whenReady().then(() => {
     const key = ['today', 'month', 'allTime'].includes(periodKey) ? periodKey : 'month';
     const period = latestStats ? completeLocalSyncStats(latestStats).periods?.[key] : null;
     const models = new Set([SAVINGS_CHEAPER_MODEL]);
-    for (const session of period?.sessions || []) {
+    for (const session of Object.values(period?.sessions || {})) {
       for (const model of Object.keys(session.modelTokenComponents || {})) if (/opus/i.test(model)) models.add(model);
     }
     const pricing = {};
-    for (const model of models) pricing[model] = await savingsModelPricing(model);
+    for (const model of models) pricing[model] = await cachedModelPricing(model);
     return analyzeSavings(period, { pricing, cheaperModel: SAVINGS_CHEAPER_MODEL });
+  });
+  // Token X-ray covers the same calendar month as the savings card.
+  ipcMain.handle('xray:get', async () => {
+    const period = latestStats ? completeLocalSyncStats(latestStats).periods?.month : null;
+    const now = new Date();
+    const audit = await auditClaudeLogs({
+      projectsDir: claudeSessionRoots({ homeDir: os.homedir() }).projects,
+      since: new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+    });
+    const models = new Set(audit?.events.map((e) => e.model));
+    for (const session of Object.values(period?.sessions || {})) {
+      for (const model of Object.keys(session.modelTokenComponents || {})) models.add(model);
+    }
+    const pricing = {};
+    for (const model of models) pricing[model] = await cachedModelPricing(model);
+    return analyzeXray(period, { pricing, audit });
   });
   ipcMain.handle('export:now', async () => {
     const result = await dialog.showOpenDialog({
@@ -9853,6 +9884,9 @@ app.whenReady().then(() => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win || win !== dashboardWindow || win.isDestroyed()) return;
     if (win.isMinimized()) win.restore();
+    // A floating widget would otherwise stay above the dashboard it just opened.
+    const widgetFloats = mainWindow?.isAlwaysOnTop() === true;
+    win.setAlwaysOnTop(widgetFloats, floatingAlwaysOnTopLevel());
     win.show();
     win.focus();
   });

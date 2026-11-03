@@ -10,26 +10,20 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createRunawayDetector, robustStats } = require('../src/shared/runawayDetector');
+const { readClaudeTurns } = require('../src/shared/tokenXray');
 
 const MIN = 60_000;
 const root = process.argv[2] || path.join(os.homedir(), '.claude', 'projects');
 
-function loadEvents() {
+async function loadEvents() {
   const events = [];
   for (const dir of fs.readdirSync(root)) {
     const full = path.join(root, dir);
     if (!fs.statSync(full).isDirectory()) continue;
     for (const file of fs.readdirSync(full).filter((f) => f.endsWith('.jsonl'))) {
       const key = `${dir}/${file}`;
-      for (const line of fs.readFileSync(path.join(full, file), 'utf8').split('\n')) {
-        if (!line.includes('"usage"')) continue;
-        let row;
-        try { row = JSON.parse(line); } catch { continue; }
-        const usage = row?.message?.usage;
-        const t = Date.parse(row?.timestamp);
-        if (row?.type !== 'assistant' || !usage || !Number.isFinite(t)) continue;
-        const fresh = (usage.input_tokens || 0) + (usage.output_tokens || 0) + (usage.cache_creation_input_tokens || 0);
-        events.push({ key, t, fresh });
+      for (const turn of await readClaudeTurns(path.join(full, file))) {
+        events.push({ key, t: turn.t, fresh: turn.input + turn.output + turn.cacheWrite });
       }
     }
   }
@@ -60,10 +54,11 @@ function synth(key, start, plan) {
   return events;
 }
 
-const events = loadEvents();
+async function main() {
+const events = await loadEvents();
 if (!events.length) {
   console.log(`No Claude Code usage found under ${root}`);
-  process.exit(0);
+  return;
 }
 
 const detector = createRunawayDetector();
@@ -120,3 +115,9 @@ for (const [size, row] of [...bySize].sort((a, b) => a[0] - b[0])) console.log(`
 console.log(`Recall, loops:       ${caught.loop.length}/${injectedTotal / 2} (${pct(caught.loop.length, injectedTotal / 2)}), avg ${avg(caught.loop)} min to alert`);
 console.log(`Precision (real alerts counted as false): ${pct(injectedCaught, injectedCaught + realAlerts.length)}`);
 if (precision < 1) for (const a of realAlerts) console.log(`  real alert: ${a.reason}, ${a.ratio.toFixed(1)}x, ${a.tokensPerMinute.toLocaleString()} tokens/min at ${new Date(a.t).toISOString()}`);
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
