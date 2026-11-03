@@ -145,3 +145,32 @@ html.native-high-contrast .dash-cards { border-color: var(--line-strong); }
 }
 
 .dash-card-v .usage-cost-info { margin-inline-start: 3px; }
+
+/* Potential savings: each row's bar is that session's Opus cost; the solid part is
+   what Sonnet would have charged, the hatched part is the money saved. */
+.dash-savings { flex: none; display: grid; gap: 14px; padding: 16px 18px; border: 1px solid rgba(var(--overlay-rgb), 0.08); border-radius: 12px; background: rgba(var(--overlay-rgb), 0.03); }
+.dash-savings-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 16px; }
+.dash-savings-title { font-size: 13px; font-weight: 600; }
+.dash-savings-sub { margin-top: 3px; font-size: 12px; color: var(--muted); }
+.dash-savings-total { font-family: var(--display-font, inherit); font-size: 26px; font-weight: 650; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; color: var(--success); }
+.dash-savings-list { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.dash-savings-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; }
+.dash-savings-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.dash-savings-amount { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--success); }
+.dash-savings-bar { grid-column: 1 / -1; display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: rgba(var(--overlay-rgb), 0.05); }
+.dash-savings-bar-track { display: flex; height: 100%; transform-origin: left center; animation: dash-savings-grow 420ms cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+.dash-savings-bar-kept { height: 100%; background: rgba(var(--overlay-rgb), 0.28); }
+.dash-savings-bar-saved { height: 100%; background: repeating-linear-gradient(135deg, rgba(var(--success-rgb), 0.9) 0 3px, rgba(var(--success-rgb), 0.45) 3px 6px); }
+.dash-savings-legend { display: flex; gap: 16px; font-size: 11px; color: var(--muted); }
+.dash-savings-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dash-savings-legend i { width: 10px; height: 6px; border-radius: 2px; background: rgba(var(--overlay-rgb), 0.28); }
+.dash-savings-legend i.saved { background: repeating-linear-gradient(135deg, rgba(var(--success-rgb), 0.9) 0 3px, rgba(var(--success-rgb), 0.45) 3px 6px); }
+.dash-savings-note { font-size: 12px; color: var(--muted); }
+.dash-savings-skeleton { height: 14px; border-radius: 4px; background: rgba(var(--overlay-rgb), 0.06); }
+.dash-savings-skeleton.wide { height: 26px; width: 40%; }
+@keyframes dash-savings-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduce-motion="off"]) .dash-savings-bar-track { animation: none; }
+}
+:root[data-reduce-motion="on"] .dash-savings-bar-track,
+.dash-savings.is-settled .dash-savings-bar-track { animation: none; }

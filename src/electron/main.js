@@ -135,6 +135,7 @@ const {
   normalizeHistoryIntervalMs,
   visibleDiagnosticRoots
 } = require('../shared/collector');
+const { analyzeSavings } = require('../shared/costOptimizer');
 const {
   antigravitySyncLockPath,
   repairAntigravitySyncLock
@@ -3205,6 +3206,19 @@ let latestHubStatsIdentity = null;
 let hubModeGeneration = 0;
 let tray = null;
 let latestStats = null;
+const SAVINGS_CHEAPER_MODEL = 'claude-sonnet-4-6';
+// ponytail: rates cached for the app's lifetime; add a TTL if prices change mid-session.
+const savingsPricingCache = new Map();
+async function savingsModelPricing(model) {
+  if (savingsPricingCache.has(model)) return savingsPricingCache.get(model);
+  try {
+    const pricing = (await lookupModelPricing(model))?.pricing || null;
+    if (pricing) savingsPricingCache.set(model, pricing);
+    return pricing;
+  } catch (_) {
+    return null;
+  }
+}
 let statsPushSource = null;
 let statsPushRevision = 0;
 let macWidgetSnapshotController = null;
@@ -8680,6 +8694,17 @@ app.whenReady().then(() => {
     }
   });
   ipcMain.handle('stats:allTimeSessions', (_event, snapshotId) => rendererAllTimeSessions(rendererSnapshots.get(snapshotId)));
+  ipcMain.handle('savings:get', async (_event, periodKey) => {
+    const key = ['today', 'month', 'allTime'].includes(periodKey) ? periodKey : 'month';
+    const period = latestStats ? completeLocalSyncStats(latestStats).periods?.[key] : null;
+    const models = new Set([SAVINGS_CHEAPER_MODEL]);
+    for (const session of period?.sessions || []) {
+      for (const model of Object.keys(session.modelTokenComponents || {})) if (/opus/i.test(model)) models.add(model);
+    }
+    const pricing = {};
+    for (const model of models) pricing[model] = await savingsModelPricing(model);
+    return analyzeSavings(period, { pricing, cheaperModel: SAVINGS_CHEAPER_MODEL });
+  });
   ipcMain.handle('export:now', async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory', 'createDirectory'],

@@ -30,6 +30,7 @@ const els = {
   legend: document.getElementById('dashLegend'),
   heatmap: document.getElementById('dashHeatmap'),
   cards: document.getElementById('dashCards'),
+  savings: document.getElementById('dashSavings'),
   empty: document.getElementById('dashEmpty'),
   tooltip: document.getElementById('dashTooltip'),
   stackBtns: Array.from(document.querySelectorAll('[data-control="stack"] .seg-btn')),
@@ -535,7 +536,107 @@ function renderActivity() {
     costValue.append(info);
   }
   balanceStatCards();
+  renderSavings();
   renderBreakdown();
+}
+
+let savingsDrawn = false;
+
+// Savings are read at a glance, so cents are enough even under $10.
+function formatSavingsMoney(usd) {
+  const code = currencyApi.normalizeCurrency(state.currency);
+  return `${currencyApi.CURRENCY_RATES[code].symbol}${currencyApi.convertUsd(usd, code).toFixed(2)}`;
+}
+
+function savingsNode(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+// state.savings: undefined while loading, { error: true } on failure, else analyzeSavings() output.
+function renderSavings() {
+  const el = els.savings;
+  const savings = state.savings;
+  el.classList.remove('hidden');
+  el.setAttribute('aria-busy', String(savings === undefined));
+  const head = savingsNode('div', 'dash-savings-head');
+  const intro = savingsNode('div');
+  intro.append(savingsNode('div', 'dash-savings-title', t('dashboard.savings.title')));
+  head.append(intro);
+
+  if (savings === undefined) {
+    intro.append(savingsNode('div', 'dash-savings-skeleton'));
+    head.append(savingsNode('div', 'dash-savings-skeleton wide'));
+    el.replaceChildren(head, savingsNode('div', 'dash-savings-skeleton'), savingsNode('div', 'dash-savings-skeleton'));
+    return;
+  }
+  if (savings.error) {
+    el.replaceChildren(head, savingsNode('div', 'dash-savings-note', t('dashboard.savings.error')));
+    return;
+  }
+  const candidates = savings.candidates || [];
+  const skippedNote = savings.skippedModels?.length
+    ? savingsNode('div', 'dash-savings-note', t('dashboard.savings.skipped', { models: savings.skippedModels.join(', ') }))
+    : null;
+  if (!candidates.length || !(savings.totalSavingsUsd > 0)) {
+    el.replaceChildren(head, savingsNode('div', 'dash-savings-note', t('dashboard.savings.none')), ...(skippedNote ? [skippedNote] : []));
+    return;
+  }
+
+  intro.append(savingsNode('div', 'dash-savings-sub', t('dashboard.savings.sub', {
+    count: candidates.length,
+    share: (savings.shareOfSpend * 100).toFixed(savings.shareOfSpend < 0.1 ? 1 : 0)
+  })));
+  head.append(savingsNode('div', 'dash-savings-total', formatSavingsMoney(savings.totalSavingsUsd)));
+
+  const top = candidates.slice(0, 3);
+  const maxCost = Math.max(...top.map((c) => c.currentCostUsd)) || 1;
+  const list = savingsNode('ol', 'dash-savings-list');
+  list.setAttribute('aria-label', t('dashboard.savings.top'));
+  top.forEach((c, index) => {
+    const title = c.title || t('dashboard.savings.untitled');
+    const row = savingsNode('li', 'dash-savings-row');
+    row.setAttribute('aria-label', t('dashboard.savings.rowLabel', {
+      title, opus: formatSavingsMoney(c.currentCostUsd), sonnet: formatSavingsMoney(c.cheaperCostUsd), amount: formatSavingsMoney(c.savingsUsd)
+    }));
+    const bar = savingsNode('div', 'dash-savings-bar');
+    bar.setAttribute('aria-hidden', 'true');
+    const track = savingsNode('div', 'dash-savings-bar-track');
+    track.style.width = `${(c.currentCostUsd / maxCost) * 100}%`;
+    track.style.setProperty('--i', String(index));
+    const kept = savingsNode('div', 'dash-savings-bar-kept');
+    kept.style.width = `${(c.cheaperCostUsd / c.currentCostUsd) * 100}%`;
+    const saved = savingsNode('div', 'dash-savings-bar-saved');
+    saved.style.flex = '1';
+    track.append(kept, saved);
+    bar.append(track);
+    row.append(savingsNode('span', 'dash-savings-name', title), savingsNode('span', 'dash-savings-amount', `-${formatSavingsMoney(c.savingsUsd)}`), bar);
+    list.append(row);
+  });
+
+  const legend = savingsNode('div', 'dash-savings-legend');
+  legend.setAttribute('aria-hidden', 'true');
+  for (const [cls, key] of [['', 'dashboard.savings.keptLegend'], ['saved', 'dashboard.savings.savedLegend']]) {
+    const item = savingsNode('span');
+    item.append(savingsNode('i', cls), document.createTextNode(t(key)));
+    legend.append(item);
+  }
+  el.replaceChildren(head, list, legend, ...(skippedNote ? [skippedNote] : []));
+  // Bars grow once, on first data; later refreshes redraw in place.
+  el.classList.toggle('is-settled', savingsDrawn);
+  savingsDrawn = true;
+}
+
+async function refreshSavings() {
+  try {
+    state.savings = await window.tokenMonitor.getSavings('month');
+  } catch (error) {
+    console.log(`[dashboard] savings failed: ${error.message}`);
+    state.savings = { error: true };
+  }
+  render();
 }
 
 function renderNow() {
@@ -649,6 +750,7 @@ async function refresh() {
     state.motion = state.history ? 'update' : 'entry';
     state.history = await window.tokenMonitor.getDashboardHistory();
     render();
+    void refreshSavings();
   } catch (error) {
     state.motion = 'none';
     console.log(`[dashboard] history failed: ${error.message}`);
