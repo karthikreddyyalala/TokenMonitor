@@ -525,7 +525,7 @@ test('tray context menu complements the primary click with useful commands', () 
   });
 
   assert.deepEqual(template.map((item) => item.label || item.type), [
-    'Refresh Now', 'Open View', 'separator', 'Tray Display', 'Window Presentation', 'separator', 'Version 0.27.0', 'Settings…', 'Restart without plugins', 'Quit Token Monitor'
+    'Refresh Now', 'Open View', 'separator', 'Tray Display', 'Window Presentation', 'separator', 'Version 0.27.0', 'Settings…', 'Restart without plugins', 'Quit Token X-ray'
   ]);
   assert.equal(template.some((item) => item.label === 'Show / Hide'), false);
   assert.equal(template[3].submenu.find((item) => item.label === 'Today Tokens + Cost').checked, true);
@@ -593,7 +593,7 @@ test('tray context menu uses the selected locale for every visible level', () =>
   });
 
   assert.deepEqual(template.map((item) => item.label || item.type), [
-    '立即重新整理', '開啟頁面', 'separator', '托盤顯示', '視窗呈現方式', 'separator', '版本 0.27.0', '設定…', '不載入外掛並重新啟動', '結束 Token Monitor'
+    '立即重新整理', '開啟頁面', 'separator', '托盤顯示', '視窗呈現方式', 'separator', '版本 0.27.0', '設定…', '不載入外掛並重新啟動', '結束 Token X-ray'
   ]);
   assert.equal(template[1].submenu[0].label, '主頁');
   assert.equal(template[3].submenu[0].label, '今日 Tokens');
@@ -613,7 +613,7 @@ test('tray context menu shows the macOS Quit shortcut on macOS only', () => {
     platform: 'darwin'
   });
   const quit = darwin.at(-1);
-  assert.equal(quit.label, 'Quit Token Monitor');
+  assert.equal(quit.label, 'Quit Token X-ray');
   assert.equal(quit.accelerator, 'Command+Q');
   // Scoped to macOS because that is where the shortcut is worth echoing, not
   // because a menu accelerator elsewhere would be unsafe: menu accelerators are
@@ -1424,5 +1424,5 @@ test('plugin menu callbacks keep native Settings, recovery and Quit entries avai
   const template = buildTrayMenuTemplate({ state: { pluginMenu: [{ pluginId: 'fixture', id: 'ping', pluginName: 'Fixture', label: 'Ping' }] }, onPluginMenu: (...args) => calls.push(args) });
   template.find(item => item.label === 'Fixture: Ping').click();
   assert.deepEqual(calls, [['fixture', 'ping']]);
-  for (const label of ['Settings…', 'Restart without plugins', 'Quit Token Monitor']) assert.ok(template.some(item => item.label === label));
+  for (const label of ['Settings…', 'Restart without plugins', 'Quit Token X-ray']) assert.ok(template.some(item => item.label === label));
 });

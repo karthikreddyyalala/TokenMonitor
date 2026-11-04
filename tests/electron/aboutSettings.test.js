@@ -114,7 +114,7 @@ test('About uses runtime version and allowlisted Token Monitor links', () => {
   const app = read('app.js');
 
   assert.match(app, /aboutVersion\.textContent = state\.appInfo\?\.version \? `v\$\{state\.appInfo\.version\}` : '—'/);
-  assert.match(app, /TOKEN_MONITOR_REPOSITORY_URL = 'https:\/\/github\.com\/Javis603\/token-monitor'/);
+  assert.match(app, /TOKEN_MONITOR_REPOSITORY_URL = 'https:\/\/github\.com\/karthikreddyyalala\/TokenMonitor'/);
   assert.match(app, /TOKEN_MONITOR_ISSUES_URL = `\$\{TOKEN_MONITOR_REPOSITORY_URL\}\/issues\/new\/choose`/);
   assert.match(app, /TOKEN_MONITOR_WEBSITE_URL = 'https:\/\/javis-ai\.com\/token-monitor\/'/);
   assert.match(app, /openRepositoryButton\?\.addEventListener\('click',[\s\S]*TOKEN_MONITOR_REPOSITORY_URL/);

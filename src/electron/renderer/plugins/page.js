@@ -25,7 +25,7 @@
     applyMotion();
     locale = meta.locale;
     document.documentElement.lang = locale;
-    document.title = `${meta.name} — Token Monitor`;
+    document.title = `${meta.name} — Token X-ray`;
     document.getElementById('pluginName').textContent = meta.name;
     document.getElementById('pluginDescription').textContent = meta.description;
     document.getElementById('pageStatus').textContent = t(`settings.plugins.status.${meta.status}`);

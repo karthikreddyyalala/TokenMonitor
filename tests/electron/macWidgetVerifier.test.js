@@ -10,7 +10,7 @@ const {
   verifyMacWidgetApp
 } = require('../../scripts/verify-macos-widget-app');
 
-const APP_ID = 'com.javis.tokenmonitor';
+const APP_ID = 'io.github.karthikreddyyalala.tokenxray';
 const WIDGET_BUNDLE_ID = 'com.javis.tokenmonitor.widget';
 const WIDGET_KIND = 'com.tokenmonitor.dashboard';
 
@@ -176,14 +176,14 @@ test('parses codesign metadata emitted on stderr', () => {
   const metadata = readCodesignMetadata('/tmp/Token Monitor.app', () => ({
     stdout: '',
     stderr: [
-      'Identifier=com.javis.tokenmonitor',
+      'Identifier=io.github.karthikreddyyalala.tokenxray',
       'TeamIdentifier=ABCDE12345',
       'Authority=Developer ID Application: Example (ABCDE12345)',
       'Authority=Developer ID Certification Authority'
     ].join('\n')
   }));
   assert.deepEqual(metadata, {
-    identifier: 'com.javis.tokenmonitor',
+    identifier: 'io.github.karthikreddyyalala.tokenxray',
     teamIdentifier: 'ABCDE12345',
     authorities: [
       'Developer ID Application: Example (ABCDE12345)',

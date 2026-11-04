@@ -527,7 +527,7 @@ const { isLightHex } = require('./renderer/themePresets');
 
 if (!app.isPackaged) loadDotEnv();
 
-const APP_NAME = 'Token Monitor';
+const APP_NAME = 'Token X-ray';
 const APP_ICON_PATH = path.join(__dirname, '..', '..', 'assets', 'icon.png');
 const WINDOWS_APP_ICON_PATH = path.join(__dirname, '..', '..', 'assets', 'icon-win.png');
 
@@ -592,7 +592,7 @@ const diagnosticJournal = createDiagnosticJournal();
 const recoverMacWidgetLaunchServicesRegistration = createMacWidgetLaunchServicesRecovery();
 
 app.setName(APP_NAME);
-if (process.platform === 'win32') app.setAppUserModelId('com.javis.tokenmonitor');
+if (process.platform === 'win32') app.setAppUserModelId('io.github.karthikreddyyalala.tokenxray');
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.exit(0);
@@ -2597,7 +2597,7 @@ function reportCredentialStorageError(context, error) {
   try {
     dialog.showErrorBox(
       'Credential storage error',
-      `Token Monitor could not safely access credentials.json (${context}). The save was stopped and previous data was restored where possible. Check the file's JSON and permissions, then restart the app.\n\n${detail}`
+      `Token X-ray could not safely access credentials.json (${context}). The save was stopped and previous data was restored where possible. Check the file's JSON and permissions, then restart the app.\n\n${detail}`
     );
   } catch (_) {}
 }
@@ -7572,7 +7572,7 @@ function isAllowedExternalUrl(value) {
   if (isAllowedCodexLoginUrl(value)) return true;
   if (parsed.hostname === 'github.com' && parsed.pathname.startsWith('/junhoyeo/tokscale')) return true;
   if (parsed.hostname === 'www.npmjs.com' && parsed.pathname.startsWith('/package/@tokscale/')) return true;
-  if (parsed.hostname === 'github.com' && parsed.pathname.startsWith('/Javis603/token-monitor')) return true;
+  if (parsed.hostname === 'github.com' && parsed.pathname.startsWith('/karthikreddyyalala/TokenMonitor')) return true;
   if (parsed.hostname === 'codex-resets.com' && (parsed.pathname === '' || parsed.pathname === '/')) return true;
   if (
     (parsed.hostname === 'javis-ai.com' || parsed.hostname === 'www.javis-ai.com')

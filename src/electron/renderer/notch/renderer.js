@@ -272,7 +272,7 @@
         }
         const iconProvider = item.type === 'icon' ? item.provider : item.iconProvider;
         const mark = iconProvider ? notchIcon({ ...item, provider: iconProvider }) : null;
-        if (mark) mark.setAttribute('aria-label', iconProvider === 'app' ? 'Token Monitor' : providerLabel(iconProvider));
+        if (mark) mark.setAttribute('aria-label', iconProvider === 'app' ? 'Token X-ray' : providerLabel(iconProvider));
         if (item.type === 'icon') { parts.push(mark); continue; }
         const block = el('span', 'notch-reading');
         let iconGap;

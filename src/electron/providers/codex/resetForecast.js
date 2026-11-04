@@ -7,7 +7,7 @@ const CODEX_RESET_FORECAST_URL = 'https://codex-resets.com/api/v1/status';
 const DEFAULT_CACHE_MS = 15 * 60 * 1000;
 const DEFAULT_ERROR_CACHE_MS = 30 * 1000;
 const DEFAULT_TIMEOUT_MS = 6 * 1000;
-const USER_AGENT = `TokenMonitor/${appVersion()} (+https://github.com/Javis603/token-monitor)`;
+const USER_AGENT = `TokenMonitor/${appVersion()} (+https://github.com/karthikreddyyalala/TokenMonitor)`;
 
 function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== '');

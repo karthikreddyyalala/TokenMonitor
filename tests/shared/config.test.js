@@ -23,14 +23,14 @@ test('sharedDataDir follows Electron userData-compatible platform paths', () => 
   const home = path.join(path.sep, 'Users', 'javis');
   assert.equal(
     sharedDataDir({ platform: 'darwin', homeDir: home, env: {} }),
-    path.join(home, 'Library', 'Application Support', 'Token Monitor')
+    path.join(home, 'Library', 'Application Support', 'Token X-ray')
   );
   assert.equal(
     sharedDataDir({ platform: 'win32', homeDir: home, env: { APPDATA: 'C:\\Users\\javis\\AppData\\Roaming' } }),
-    path.join('C:\\Users\\javis\\AppData\\Roaming', 'Token Monitor')
+    path.join('C:\\Users\\javis\\AppData\\Roaming', 'Token X-ray')
   );
   assert.equal(
     sharedDataDir({ platform: 'linux', homeDir: home, env: { XDG_CONFIG_HOME: '/tmp/config' } }),
-    path.join('/tmp/config', 'Token Monitor')
+    path.join('/tmp/config', 'Token X-ray')
   );
 });
