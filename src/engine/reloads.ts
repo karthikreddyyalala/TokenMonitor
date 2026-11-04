@@ -8,8 +8,11 @@ export interface Reload { turn: Turn; kind: ReloadKind; tokens: number; gapMs: n
 const MIN_CONTEXT = 20_000; // smaller rebuilds are noise
 const REWRITE_SHARE = 0.6; // a reload re-writes at least this share of the context
 const SHRUNK_BELOW = 0.7; // a context this much smaller than before was compacted, not reloaded
-const FIVE_MINUTES = 5 * 60_000;
-const ONE_HOUR = 60 * 60_000;
+export const FIVE_MINUTES = 5 * 60_000;
+export const ONE_HOUR = 60 * 60_000;
+
+// A cache write states its tier. A pure read does not (null): it keeps the tier written before.
+export const tierOf = (turn: Turn): number | null => (turn.write1h > 0 ? ONE_HOUR : turn.write5m > 0 ? FIVE_MINUTES : null);
 
 // `entries` is one chat, sorted by time. Subagent turns have their own caches, so they are skipped.
 export function findReloads(entries: Entry[]): Reload[] {
@@ -28,8 +31,7 @@ export function findReloads(entries: Entry[]): Reload[] {
     const context = entry.input + write + entry.cacheRead;
     const prev = lastByModel.get(entry.model);
     const before = lastAny;
-    // A write states its tier; a pure read does not, so it keeps the tier seen before.
-    const ttl = entry.write1h > 0 ? ONE_HOUR : entry.write5m > 0 ? FIVE_MINUTES : (prev?.ttl ?? ONE_HOUR);
+    const ttl = tierOf(entry) ?? prev?.ttl ?? ONE_HOUR;
     lastByModel.set(entry.model, { t: entry.t, context, ttl });
     lastAny = { t: entry.t, ttl };
     if (context < MIN_CONTEXT || write < REWRITE_SHARE * context) continue;

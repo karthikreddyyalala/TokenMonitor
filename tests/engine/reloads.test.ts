@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readLog, type Turn } from '../../src/engine/logs.ts';
-import { findReloads } from '../../src/engine/reloads.ts';
-import { COMPACT_CHAT, HOME_CHAT, RENAMED_CHAT, SWITCH_CHAT } from '../helpers.ts';
+import { FIVE_MINUTES, findReloads, ONE_HOUR, tierOf } from '../../src/engine/reloads.ts';
+import { COMPACT_CHAT, FIVE_MINUTE_LOG, HOME_CHAT, PURE_READ_LOG, RENAMED_CHAT, SWITCH_CHAT } from '../helpers.ts';
 
 const entriesOf = async (file: string) => (await readLog(file)).entries.sort((a, b) => a.t - b.t);
 
@@ -39,4 +39,12 @@ test('a rewrite right after /compact is expected, even with a new model', async 
 
 test('the first turn of a chat is never a reload', async () => {
   assert.deepEqual(findReloads(await entriesOf(RENAMED_CHAT)), []);
+});
+
+test('tierOf: a cache write states its tier, a pure read does not', async () => {
+  const [write, read] = (await readLog(PURE_READ_LOG)).entries as Turn[];
+  assert.equal(tierOf(write), ONE_HOUR);
+  assert.equal(tierOf(read), null);
+  const [five] = (await readLog(FIVE_MINUTE_LOG)).entries as Turn[];
+  assert.equal(tierOf(five), FIVE_MINUTES);
 });

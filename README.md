@@ -20,6 +20,23 @@ npx tokenxray --days 7     # look back 7 days (default 30)
 npx tokenxray --json       # the same numbers as JSON
 ```
 
+## Cache countdown in Claude Code's status line
+
+Claude Code caches your conversation for 5 minutes or 1 hour after each response. Let a chat sit idle past that and the next message pays to write the whole context into the cache again. Claude Code only tells you after it happens. Token X-ray shows the time left, under the prompt:
+
+```
+cache 42m · 216k ctx
+```
+
+It turns amber under 10 minutes, red under 5, and says `cache expired` after. Turn it on with:
+
+```bash
+npm install -g tokenxray
+tokenxray setup
+```
+
+`setup` shows the change to `~/.claude/settings.json` and asks before writing it. It keeps a backup and never touches a file it cannot parse. To turn it off, delete the `statusLine` entry from that file.
+
 Needs Node.js 22.18 or newer. Reads `~/.claude/projects` (or `$CLAUDE_CONFIG_DIR/projects`). **Nothing leaves your computer.**
 
 ## How the numbers are calculated
@@ -32,6 +49,8 @@ Needs Node.js 22.18 or newer. Reads `~/.claude/projects` (or `$CLAUDE_CONFIG_DIR
   - **Model switch:** the first turn on a model after using another, while the old cache was still alive; caches are per model. If the chat had already sat idle past the cache lifetime, the reload counts as expired, since it would have happened on any model.
   - **Unexplained:** a rewrite inside the cache lifetime with no visible cause.
   - A rewrite right after `/compact`, or when the context shrank by 30% or more, is expected and is not counted.
+
+- **Cache countdown.** Claude Code 2.1.251 and newer sends the cache expiry to the status line, and Token X-ray shows it as is. Older versions don't, so Token X-ray reads the end of the chat's log: the cache was last refreshed by the latest response that read or wrote it (subagents have their own caches), and lives 5 minutes or 1 hour from then, by the tier that response, or the last write before it, used. After `/compact` there is no cache until the next response.
 
 ## Credits
 
