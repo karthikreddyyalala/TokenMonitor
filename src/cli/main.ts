@@ -39,11 +39,16 @@ async function setup(): Promise<number> {
     console.error('Install Token X-ray first, so the status line does not depend on npx:\n  npm install -g tokenxray\n  tokenxray setup');
     return 2;
   }
+  return runSetup(join(claudeDir(), 'settings.json'), statusCommand(process.execPath, main), ask);
+}
+
+// Opens stdin only when asking, so a piped answer (`echo y | tokenxray setup`) can't arrive before the
+// question and be lost. If stdin ends without an answer, the answer is no.
+async function ask(question: string): Promise<string> {
   const lines = createInterface({ input: process.stdin, output: process.stdout });
-  const closed = new Promise<string>((resolve) => lines.once('close', () => resolve(''))); // stdin ended: no answer means no
+  const closed = new Promise<string>((resolve) => lines.once('close', () => resolve('')));
   try {
-    const ask = (question: string) => Promise.race([lines.question(question), closed]);
-    return await runSetup(join(claudeDir(), 'settings.json'), statusCommand(process.execPath, main), ask);
+    return await Promise.race([lines.question(question).catch(() => ''), closed]);
   } finally {
     lines.close();
   }

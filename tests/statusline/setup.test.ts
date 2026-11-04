@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -38,6 +38,7 @@ test('planSetup replaces another status line but keeps its padding', () => {
 test('planSetup refuses files it cannot parse and notices when nothing would change', () => {
   assert.equal(planSetup('{"model": "opus",}', COMMAND).kind, 'unreadable');
   assert.equal(planSetup('[]', COMMAND).kind, 'unreadable');
+  assert.equal(planSetup('\uFEFF{"model":"opus"}', COMMAND).kind, 'change'); // byte-order mark from Notepad
   const done = planSetup(null, COMMAND);
   assert.equal(planSetup(done.kind === 'change' ? done.text : '', COMMAND).kind, 'done');
 });
@@ -64,4 +65,16 @@ test('runSetup creates settings.json when there is none, and leaves broken JSON 
   await writeFile(broken, '{ nope');
   assert.equal(await runSetup(broken, COMMAND, async () => 'y', quiet), 1);
   assert.equal(await readFile(broken, 'utf8'), '{ nope');
+});
+
+test('runSetup writes through a symlinked settings.json', { skip: process.platform === 'win32' && 'symlinks need admin rights on Windows' }, async () => {
+  const dir = await tempDir();
+  const real = join(dir, 'dotfiles-settings.json');
+  const link = join(dir, 'settings.json');
+  await writeFile(real, '{"model":"opus"}');
+  await symlink(real, link);
+  assert.equal(await runSetup(link, COMMAND, async () => 'y', quiet), 0);
+  assert.equal(JSON.parse(await readFile(real, 'utf8')).statusLine.command, COMMAND);
+  assert.ok((await readdir(dir)).some((name) => name.startsWith('dotfiles-settings.json.backup-')));
+  assert.ok(!(await readdir(dir)).some((name) => name.endsWith('.tokenxray-tmp')));
 });

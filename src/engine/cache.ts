@@ -51,9 +51,9 @@ export async function cacheFromLog(file: string, firstWindow = FIRST_WINDOW): Pr
     for (let window = firstWindow; ; window *= 8) {
       const length = Math.min(window, size);
       const buffer = Buffer.alloc(length);
-      await handle.read(buffer, 0, length, size - length);
+      const { bytesRead } = await handle.read(buffer, 0, length, size - length); // fewer if the file shrank
       const whole = length === size;
-      const lines = buffer.toString('utf8').split('\n');
+      const lines = buffer.subarray(0, bytesRead).toString('utf8').split('\n');
       if (!whole) lines.shift(); // cut off mid-line
       const entries: Entry[] = [];
       for (const line of lines) {
@@ -74,7 +74,7 @@ export async function cacheFromLog(file: string, firstWindow = FIRST_WINDOW): Pr
 export function cacheFromStatus(input: StatusInput): CacheState | null | undefined {
   const cache = input.prompt_cache;
   if (!cache || cache.expires_at === undefined) return undefined;
-  if (cache.expires_at === null) return null; // the last response used no cache
+  if (typeof cache.expires_at !== 'number') return null; // null: the last response used no cache
   const usage = input.context_window?.current_usage;
   if (!usage) return undefined;
   return {

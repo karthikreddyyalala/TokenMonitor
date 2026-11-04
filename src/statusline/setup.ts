@@ -1,6 +1,6 @@
 // `tokenxray setup`: adds the status line to Claude Code's settings.json. Shows the change and asks
 // first, keeps a backup, and never touches a file it cannot parse.
-import { copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 const REFRESH_SECONDS = 30; // Claude Code re-runs the command this often, so the countdown ticks while you are idle
@@ -21,7 +21,7 @@ export function planSetup(current: string | null, command: string): SetupPlan {
   if (current !== null && current.trim() !== '') {
     let parsed: unknown;
     try {
-      parsed = JSON.parse(current);
+      parsed = JSON.parse(current.replace(/^\uFEFF/, '')); // Windows Notepad adds a byte-order mark
     } catch (error) {
       return { kind: 'unreadable', reason: (error as Error).message };
     }
@@ -69,14 +69,21 @@ export async function runSetup(
     return 0;
   }
   await mkdir(dirname(file), { recursive: true });
+  // Write through a symlink (dotfile managers), not over it.
+  const target = current === null ? file : await realpath(file);
   let backup = '';
   if (current !== null) {
-    backup = `${file}.backup-${Date.now()}`;
-    await copyFile(file, backup);
+    backup = `${target}.backup-${Date.now()}`;
+    await copyFile(target, backup);
   }
-  const temp = `${file}.tokenxray-tmp`;
+  const temp = `${target}.tokenxray-tmp`;
   await writeFile(temp, plan.text);
-  await rename(temp, file); // a crash mid-write leaves the old file whole
+  try {
+    await rename(temp, target); // a crash mid-write leaves the old file whole
+  } catch (error) {
+    await rm(temp, { force: true }); // on Windows the file can be locked by another program
+    throw error;
+  }
   log(`Done.${backup ? ` Backup: ${backup}` : ''}\nThe countdown appears under Claude Code's prompt after its next response.`);
   return 0;
 }

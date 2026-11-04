@@ -53,6 +53,7 @@ test('Claude Code 2.1.251+ states the expiry on stdin', async () => {
   assert.deepEqual(cacheFromStatus(input), { expiresAt: 1738429200 * 1000, context: 8500 + 5000 + 2000 });
   assert.equal(cacheFromStatus({ ...input, prompt_cache: { ...input.prompt_cache, expires_at: null } }), null);
   assert.equal(cacheFromStatus({ transcript_path: '/x.jsonl' }), undefined); // older versions
+  assert.equal(cacheFromStatus({ ...input, prompt_cache: { expires_at: 'soon' as unknown as number } }), null); // never "cache NaNm"
   assert.equal(cacheFromStatus({ ...input, context_window: { current_usage: null } }), undefined); // right after /compact
 });
 
