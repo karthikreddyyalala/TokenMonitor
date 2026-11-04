@@ -8,3 +8,8 @@ export const SWITCH_CHAT = join(PROJECTS, 'professordm', '8ec33eea-336a-48d3-a19
 export const COMPACT_CHAT = join(PROJECTS, 'crucible', '401e8b1d-0774-48bb-9403-091741e595be.jsonl');
 export const SUBAGENT_LOG = join(PROJECTS, 'crucible', '9139fb89-aedd-4bdd-bdc4-5e59a7a0b134', 'subagents', 'agent-a65cbf981b7a3134f.jsonl');
 export const RENAMED_CHAT = join(PROJECTS, 'tokenmonitor', 'aeb2a777-f9b6-450c-8769-6c922545b116.jsonl');
+// Status line cases, also real log lines (see tests/fixtures/README.md).
+export const FIVE_MINUTE_LOG = join(FIXTURES, 'cache', 'five-minute.jsonl');
+export const PURE_READ_LOG = join(FIXTURES, 'cache', 'pure-read.jsonl');
+// The example Claude Code status line input, copied from https://code.claude.com/docs/en/statusline
+export const STATUS_INPUT = join(FIXTURES, 'statusline-input.json');

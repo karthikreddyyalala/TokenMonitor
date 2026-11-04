@@ -12,6 +12,15 @@
 
 `compact-agent/projects/` is a separate mini folder: one main-chat response (line 26 of a FinRAG chat) and the copy of it that Claude Code's `/compact` helper wrote to `subagents/agent-acompact-….jsonl` (line 5). It must count once.
 
+`cache/` holds status line cases, cut from a FinRAG chat. They live outside `projects/` so the report tests don't count them:
+
+| File | Source lines | What it covers |
+|---|---|---|
+| `cache/five-minute.jsonl` | 6940, 6941, 6942 | one response on the 5-minute cache tier, logged three times |
+| `cache/pure-read.jsonl` | 10856, 10860 | a 1-hour cache write, then 50 minutes later a response that only read the cache |
+
+`statusline-input.json` is not a log line: it is the example status line input from [Claude Code's docs](https://code.claude.com/docs/en/statusline), copied as is.
+
 To add a case, find the line numbers in a real log (`grep -n`), then run:
 
     node scripts/make-fixture.ts <log.jsonl> <line> [<line> ...] > tests/fixtures/projects/<project>/<chat-id>.jsonl
