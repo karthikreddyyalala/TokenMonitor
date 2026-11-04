@@ -26,7 +26,7 @@ export function claudeDir(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 const missing = (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT';
-const count = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0);
+export const count = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0);
 const lastFolder = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() ?? '';
 
 // Every .jsonl under projects/, including subagent logs in <chat>/subagents/, changed since `since`.
@@ -51,6 +51,54 @@ export async function findLogFiles(projectsDir: string, since = 0): Promise<stri
   return files.sort();
 }
 
+// The fields of a log line that Token X-ray reads. Everything else is ignored.
+export interface Row {
+  type?: string; subtype?: string; timestamp?: string; sessionId?: string; cwd?: string; requestId?: string;
+  isSidechain?: boolean; isApiErrorMessage?: boolean; isCompactSummary?: boolean;
+  aiTitle?: string; customTitle?: string;
+  message?: {
+    id?: string; model?: string;
+    usage?: {
+      input_tokens?: unknown; output_tokens?: unknown; cache_read_input_tokens?: unknown; cache_creation_input_tokens?: unknown;
+      cache_creation?: { ephemeral_1h_input_tokens?: unknown };
+    };
+  };
+}
+
+// Logs run to hundreds of MB and only a few lines matter, so skip the rest before parsing.
+// Returns null for a line that does not matter or is half-written (Claude Code may be mid-write).
+export function parseRow(line: string): Row | null {
+  if (!line.includes('"usage"') && !line.includes('compact_boundary') && !line.includes('isCompactSummary') && !line.includes('Title"')) return null;
+  try {
+    return JSON.parse(line);
+  } catch {
+    return null;
+  }
+}
+
+// One row -> a billed turn, a /compact marker, or null for everything else.
+export function toEntry(row: Row): Entry | null {
+  const t = Date.parse(row.timestamp ?? '');
+  if (!Number.isFinite(t)) return null;
+  if ((row.subtype === 'compact_boundary' || row.isCompactSummary === true) && row.isSidechain !== true) return { kind: 'compact', t };
+  const usage = row.message?.usage;
+  if (row.type !== 'assistant' || !usage || row.isApiErrorMessage === true || row.message?.model === '<synthetic>') return null;
+  const write = count(usage.cache_creation_input_tokens);
+  const write1h = Math.min(count(usage.cache_creation?.ephemeral_1h_input_tokens), write);
+  return {
+    kind: 'turn',
+    id: `${row.message?.id}|${row.requestId}`,
+    t,
+    model: String(row.message?.model ?? ''),
+    input: count(usage.input_tokens),
+    output: count(usage.output_tokens),
+    cacheRead: count(usage.cache_read_input_tokens),
+    write5m: write - write1h,
+    write1h,
+    sidechain: row.isSidechain === true,
+  };
+}
+
 export interface Log { sessionId: string; title: string | null; cwd: string | null; entries: Entry[] }
 
 export async function readLog(file: string): Promise<Log> {
@@ -60,49 +108,26 @@ export async function readLog(file: string): Promise<Log> {
   const seen = new Map<string, number>();
   const lines = createInterface({ input: createReadStream(file, 'utf8'), crlfDelay: Infinity });
   for await (const line of lines) {
-    // Logs run to hundreds of MB; only these lines matter, so skip the rest before parsing.
-    if (!line.includes('"usage"') && !line.includes('compact_boundary') && !line.includes('isCompactSummary') && !line.includes('Title"')) continue;
-    let row;
-    try {
-      row = JSON.parse(line);
-    } catch {
-      continue; // the last line can be half-written while Claude Code is running
-    }
+    const row = parseRow(line);
+    if (!row) continue;
     if (typeof row.sessionId === 'string') log.sessionId = row.sessionId;
     if (row.type === 'ai-title' && typeof row.aiTitle === 'string') aiTitle = row.aiTitle;
     if (row.type === 'custom-title' && typeof row.customTitle === 'string') customTitle = row.customTitle;
-    const t = Date.parse(row.timestamp);
-    if (!Number.isFinite(t)) continue;
-    if ((row.subtype === 'compact_boundary' || row.isCompactSummary === true) && row.isSidechain !== true) {
-      log.entries.push({ kind: 'compact', t });
+    const entry = toEntry(row);
+    if (!entry) continue;
+    if (entry.kind === 'compact') {
+      log.entries.push(entry);
       continue;
     }
-    const usage = row.message?.usage;
-    if (row.type !== 'assistant' || !usage || row.isApiErrorMessage === true || row.message.model === '<synthetic>') continue;
     if (!log.cwd && typeof row.cwd === 'string') log.cwd = row.cwd;
-    const write = count(usage.cache_creation_input_tokens);
-    const write1h = Math.min(count(usage.cache_creation?.ephemeral_1h_input_tokens), write);
-    const id = `${row.message.id}|${row.requestId}`;
-    const turn: Turn = {
-      kind: 'turn',
-      id,
-      t,
-      model: String(row.message.model ?? ''),
-      input: count(usage.input_tokens),
-      output: count(usage.output_tokens),
-      cacheRead: count(usage.cache_read_input_tokens),
-      write5m: write - write1h,
-      write1h,
-      sidechain: row.isSidechain === true,
-    };
     // Claude Code logs one response several times while it streams. Count it once, with the
     // last copy's usage (output keeps growing) and the first copy's time.
-    const at = seen.get(id);
+    const at = seen.get(entry.id);
     if (at === undefined) {
-      seen.set(id, log.entries.length);
-      log.entries.push(turn);
+      seen.set(entry.id, log.entries.length);
+      log.entries.push(entry);
     } else {
-      log.entries[at] = { ...turn, t: log.entries[at].t };
+      log.entries[at] = { ...entry, t: log.entries[at].t };
     }
   }
   log.title = customTitle ?? aiTitle;

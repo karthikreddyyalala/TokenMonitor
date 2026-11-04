@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { claudeDir, findLogFiles, loadChats, readLog, type Turn } from '../../src/engine/logs.ts';
+import { claudeDir, findLogFiles, loadChats, parseRow, readLog, type Turn } from '../../src/engine/logs.ts';
 import { COMPACT_CHAT, FIXTURES, HOME_CHAT, PROJECTS, RENAMED_CHAT, SUBAGENT_LOG, SWITCH_CHAT } from '../helpers.ts';
 
 const turns = (entries: { kind: string }[]) => entries.filter((e): e is Turn => e.kind === 'turn');
@@ -57,4 +57,10 @@ test('loadChats merges a subagent log into its parent chat and names the project
   assert.deepEqual(turns(parent.entries).map((t) => t.sidechain), [true]);
   const home = chats.find((c) => c.id === '1eb4e9bd-6da2-4752-a65b-579a033add88');
   assert.equal(home?.project, 'home');
+});
+
+test('parseRow skips lines that do not matter and half-written ones', () => {
+  assert.equal(parseRow('{"type":"user","message":{"content":"hi"}}'), null);
+  assert.equal(parseRow('{"type":"assistant","message":{"usage":{"input_tok'), null);
+  assert.equal(parseRow('{"type":"ai-title","aiTitle":"Fixture chat"}')?.aiTitle, 'Fixture chat');
 });
