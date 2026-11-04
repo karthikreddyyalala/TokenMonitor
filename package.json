@@ -1,0 +1,28 @@
+{
+  "name": "tokenxray",
+  "version": "0.1.0",
+  "description": "See where your Claude Code spend goes: re-reading old context, expired prompt caches, and the chats that cost the most.",
+  "keywords": ["claude", "claude-code", "prompt-caching", "llmops", "cost", "tokens", "cli"],
+  "license": "MIT",
+  "author": "Karthik Reddy",
+  "repository": { "type": "git", "url": "git+https://github.com/karthikreddyyalala/token-xray.git" },
+  "type": "module",
+  "bin": { "tokenxray": "dist/cli/main.js" },
+  "files": ["dist"],
+  "engines": { "node": ">=22.18.0" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "verify": "npm run lint && npm run typecheck && npm test",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.20.5",
+    "eslint": "10.14.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1"
+  }
+}
