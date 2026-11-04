@@ -16,23 +16,30 @@ export function findReloads(entries: Entry[]): Reload[] {
   const reloads: Reload[] = [];
   // The cache is per model: switching away and back within its lifetime is free.
   let lastByModel = new Map<string, { t: number; context: number; ttl: number }>();
+  let lastAny: { t: number; ttl: number } | null = null;
   for (const entry of entries) {
     if (entry.kind === 'compact') {
       lastByModel = new Map(); // after /compact a fresh write is expected, not waste
+      lastAny = null;
       continue;
     }
     if (entry.sidechain) continue;
     const write = entry.write5m + entry.write1h;
     const context = entry.input + write + entry.cacheRead;
     const prev = lastByModel.get(entry.model);
-    const otherModelSeen = !prev && lastByModel.size > 0;
+    const before = lastAny;
     // A write states its tier; a pure read does not, so it keeps the tier seen before.
     const ttl = entry.write1h > 0 ? ONE_HOUR : entry.write5m > 0 ? FIVE_MINUTES : (prev?.ttl ?? ONE_HOUR);
     lastByModel.set(entry.model, { t: entry.t, context, ttl });
+    lastAny = { t: entry.t, ttl };
     if (context < MIN_CONTEXT || write < REWRITE_SHARE * context) continue;
     if (!prev) {
-      if (otherModelSeen) reloads.push({ turn: entry, kind: 'modelSwitch', tokens: write, gapMs: null });
-      continue; // otherwise this is the chat's first turn
+      if (!before) continue; // the chat's first turn
+      // If the chat sat idle past the cache lifetime, it would have reloaded on any model.
+      const gapMs = entry.t - before.t;
+      const kind = gapMs > before.ttl ? 'expired' : 'modelSwitch';
+      reloads.push({ turn: entry, kind, tokens: write, gapMs: kind === 'expired' ? gapMs : null });
+      continue;
     }
     if (context < SHRUNK_BELOW * prev.context) continue;
     const gapMs = entry.t - prev.t;

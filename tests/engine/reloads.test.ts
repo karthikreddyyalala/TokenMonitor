@@ -26,6 +26,13 @@ test('a full rewrite right after switching model is a model-switch reload', asyn
   assert.deepEqual(reloads.map((r) => [r.kind, r.tokens, r.gapMs]), [['modelSwitch', 287359, null]]);
 });
 
+test('switching model after the cache already expired counts as expired, not model switch', async () => {
+  const entries = await entriesOf(SWITCH_CHAT);
+  const [previous, reload] = entries.filter((e): e is Turn => e.kind === 'turn');
+  const dayLater = entries.map((e) => (e === reload ? { ...reload, t: previous.t + 27 * 3_600_000 } : e));
+  assert.deepEqual(findReloads(dayLater).map((r) => [r.kind, r.gapMs]), [['expired', 27 * 3_600_000]]);
+});
+
 test('a rewrite right after /compact is expected, even with a new model', async () => {
   assert.deepEqual(findReloads(await entriesOf(COMPACT_CHAT)), []);
 });
