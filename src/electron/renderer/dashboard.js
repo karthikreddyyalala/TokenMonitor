@@ -750,10 +750,29 @@ function xrayCopyButton(xray, ratio) {
   return button;
 }
 
+// The reloads number is the reason to want the warning, so the switch sits under it.
+function xrayExpiryControl() {
+  if (state.settings?.cacheExpiryAlertsEnabled === true) return savingsNode('div', 'dash-xray-expiry-on', t('dashboard.xray.expiryOn'));
+  const button = savingsNode('button', 'dash-xray-copy dash-xray-expiry', t('dashboard.xray.expiryEnable'));
+  button.type = 'button';
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    try {
+      await window.tokenMonitor.updateSettings({ cacheExpiryAlertsEnabled: true });
+      state.settings = { ...(state.settings || {}), cacheExpiryAlertsEnabled: true };
+      renderXray();
+    } catch (error) {
+      console.log(`[dashboard] expiry warning switch failed: ${error.message}`);
+      button.disabled = false;
+    }
+  });
+  return button;
+}
+
 function renderXray() {
   const el = els.xray;
   const xray = state.xray;
-  const key = JSON.stringify([xray ?? null, state.currency, state.locale]);
+  const key = JSON.stringify([xray ?? null, state.currency, state.locale, state.settings?.cacheExpiryAlertsEnabled === true]);
   if (key === xrayRenderKey) return;
   xrayRenderKey = key;
   el.classList.remove('hidden');
@@ -827,6 +846,7 @@ function renderXray() {
         stats.append(stat);
       }
       audit.append(stats);
+      audit.append(xrayExpiryControl());
     }
     if (rebuilds.startContextTokens > 0) {
       audit.append(savingsNode('div', 'dash-savings-note', t('dashboard.xray.setup', { tokens: formatCompact(rebuilds.startContextTokens) })));
@@ -1070,6 +1090,7 @@ window.tokenMonitor.onSettingsPush?.((next) => {
     needsRender = true;
   }
   if (state.reduceMotion !== previousReduceMotion) needsRender = true;
+  if ('cacheExpiryAlertsEnabled' in next) needsRender = true;
   const nextMetric = next.heatmapMetric || 'cost';
   if (state.heatmapMetric !== nextMetric) {
     state.heatmapMetric = nextMetric;
