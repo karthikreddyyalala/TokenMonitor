@@ -7,6 +7,7 @@ import { createInterface } from 'node:readline';
 
 export interface Turn {
   kind: 'turn';
+  id: string; // message.id + requestId: one response, however many times it was logged
   t: number; // when the response was first logged (ms since 1970)
   model: string;
   input: number;
@@ -81,8 +82,10 @@ export async function readLog(file: string): Promise<Log> {
     if (!log.cwd && typeof row.cwd === 'string') log.cwd = row.cwd;
     const write = count(usage.cache_creation_input_tokens);
     const write1h = Math.min(count(usage.cache_creation?.ephemeral_1h_input_tokens), write);
+    const id = `${row.message.id}|${row.requestId}`;
     const turn: Turn = {
       kind: 'turn',
+      id,
       t,
       model: String(row.message.model ?? ''),
       input: count(usage.input_tokens),
@@ -94,7 +97,6 @@ export async function readLog(file: string): Promise<Log> {
     };
     // Claude Code logs one response several times while it streams. Count it once, with the
     // last copy's usage (output keeps growing) and the first copy's time.
-    const id = `${row.message.id}|${row.requestId}`;
     const at = seen.get(id);
     if (at === undefined) {
       seen.set(id, log.entries.length);
@@ -110,6 +112,7 @@ export async function readLog(file: string): Promise<Log> {
 // One chat per session id. A subagent log carries its parent chat's session id, so it merges in.
 export async function loadChats(projectsDir: string, since = 0): Promise<Chat[]> {
   const chats = new Map<string, Chat>();
+  const turnAt = new Map<string, Map<string, number>>(); // per chat: response id -> index in entries
   for (const file of await findLogFiles(projectsDir, since)) {
     let log: Log;
     try {
@@ -122,10 +125,26 @@ export async function loadChats(projectsDir: string, since = 0): Promise<Chat[]>
     if (!chat) {
       chat = { id: log.sessionId, title: null, project: '', entries: [] };
       chats.set(chat.id, chat);
+      turnAt.set(chat.id, new Map());
     }
+    const seen = turnAt.get(chat.id)!;
     chat.title = log.title ?? chat.title;
     if (!chat.project && log.cwd) chat.project = lastFolder(log.cwd);
-    for (const entry of log.entries) chat.entries.push(entry);
+    for (const entry of log.entries) {
+      if (entry.kind === 'compact') {
+        chat.entries.push(entry);
+        continue;
+      }
+      // The /compact helper's log (subagents/agent-acompact-*) repeats main-chat responses.
+      // Count each once, preferring the main-chat copy.
+      const at = seen.get(entry.id);
+      if (at === undefined) {
+        seen.set(entry.id, chat.entries.length);
+        chat.entries.push(entry);
+      } else if ((chat.entries[at] as Turn).sidechain && !entry.sidechain) {
+        chat.entries[at] = entry;
+      }
+    }
   }
   for (const chat of chats.values()) chat.entries.sort((a, b) => a.t - b.t);
   return [...chats.values()];

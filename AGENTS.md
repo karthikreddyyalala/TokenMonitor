@@ -17,7 +17,7 @@ node src/cli/main.ts [--days N] [--json]   # run the report from source
 
 - **Every number comes from `src/engine/xray.ts`.** Screens format, they never compute.
 - **Runtime code uses Node built-ins only.** `dependencies` stays empty; dev tools are pinned exact.
-- **One response = one turn.** Claude Code logs a streamed response several times. Dedupe by `message.id` + `requestId`, keep the last copy's usage and the first copy's time.
+- **One response = one turn.** Claude Code logs a streamed response several times. Dedupe by `message.id` + `requestId`, keep the last copy's usage and the first copy's time. The `/compact` helper's log (`subagents/agent-acompact-*`) repeats main-chat responses, so dedupe across a chat's files too, preferring the main-chat copy.
 - **Price cache writes by tier.** `usage.cache_creation.ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens` have different rates, and cache-read multipliers differ per model. Update `src/engine/pricing.ts` from the official pricing page, never from memory.
 - **Fixtures are real log lines** cut with `scripts/make-fixture.ts`. Never hand-write log shapes.
 - **Read logs recursively.** Subagent logs live in `projects/<project>/<chat-id>/subagents/`.

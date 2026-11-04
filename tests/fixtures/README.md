@@ -10,6 +10,8 @@
 | `crucible/9139fb89-…/subagents/agent-….jsonl` | 19 | a subagent turn on the 5-minute cache tier |
 | `tokenmonitor/aeb2a777-….jsonl` | 16, 35 | a renamed chat (custom title) |
 
+`compact-agent/projects/` is a separate mini folder: one main-chat response (line 26 of a FinRAG chat) and the copy of it that Claude Code's `/compact` helper wrote to `subagents/agent-acompact-….jsonl` (line 5). It must count once.
+
 To add a case, find the line numbers in a real log (`grep -n`), then run:
 
     node scripts/make-fixture.ts <log.jsonl> <line> [<line> ...] > tests/fixtures/projects/<project>/<chat-id>.jsonl

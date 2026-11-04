@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { claudeDir, findLogFiles, loadChats, readLog, type Turn } from '../../src/engine/logs.ts';
-import { COMPACT_CHAT, HOME_CHAT, PROJECTS, RENAMED_CHAT, SUBAGENT_LOG, SWITCH_CHAT } from '../helpers.ts';
+import { COMPACT_CHAT, FIXTURES, HOME_CHAT, PROJECTS, RENAMED_CHAT, SUBAGENT_LOG, SWITCH_CHAT } from '../helpers.ts';
 
 const turns = (entries: { kind: string }[]) => entries.filter((e): e is Turn => e.kind === 'turn');
 
@@ -38,6 +38,14 @@ test('titles: a renamed chat uses its custom title, otherwise the AI title, othe
   assert.equal((await readLog(RENAMED_CHAT)).title, 'Renamed fixture chat');
   assert.equal((await readLog(SWITCH_CHAT)).title, 'Fixture chat');
   assert.equal((await readLog(HOME_CHAT)).title, null);
+});
+
+test('a response repeated in the /compact helper log counts once, as the main-chat turn', async () => {
+  const chats = await loadChats(join(FIXTURES, 'compact-agent', 'projects'));
+  assert.equal(chats.length, 1);
+  const all = turns(chats[0].entries);
+  assert.equal(all.length, 1);
+  assert.equal(all[0].sidechain, false);
 });
 
 test('loadChats merges a subagent log into its parent chat and names the project', async () => {
