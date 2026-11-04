@@ -844,6 +844,11 @@
               <input id="heavySessionAlertsInput" type="checkbox" />
               <span class="settings-note settings-item-desc" data-i18n="settings.limits.heavySessionAlertsDesc">Sends one notification when a session you are using holds more than 150k tokens of context, because every message then re-reads all of it.</span>
             </label>
+            <label class="checkbox-label settings-item">
+              <span class="settings-item-text"><span class="settings-item-title" data-i18n="settings.limits.cacheExpiryAlerts">Warn me before chat memory expires</span></span>
+              <input id="cacheExpiryAlertsInput" type="checkbox" />
+              <span class="settings-note settings-item-desc" data-i18n="settings.limits.cacheExpiryAlertsDesc">Sends one notification about 5 minutes before an idle chat over 100k tokens loses its 1-hour cache, so a single message can keep it instead of re-reading everything.</span>
+            </label>
             <div class="settings-item">
               <span id="showLimitUsedLabel" class="settings-item-text"><span class="settings-item-title" data-i18n="settings.limits.barsShow">Bars show</span></span>
               <div class="inline-options" role="radiogroup" aria-labelledby="showLimitUsedLabel">

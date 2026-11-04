@@ -138,7 +138,7 @@ const {
 const { analyzeSavings } = require('../shared/costOptimizer');
 const { DEFAULT_THRESHOLD: AUTO_DOWNGRADE_THRESHOLD, runAutoDowngrade } = require('../shared/autoDowngrade');
 const { createRunawayDetector } = require('../shared/runawayDetector');
-const { analyzeXray, auditClaudeLogs, createHeavySessionWatch } = require('../shared/tokenXray');
+const { analyzeXray, auditClaudeLogs, createCacheExpiryWatch, createHeavySessionWatch } = require('../shared/tokenXray');
 const { claudeSessionRoots } = require('../shared/providers/claude/paths');
 const {
   antigravitySyncLockPath,
@@ -746,6 +746,7 @@ function defaultSettings() {
     autoDowngradeEnabled: false,
     runawayAlertsEnabled: false,
     heavySessionAlertsEnabled: false,
+    cacheExpiryAlertsEnabled: false,
     exportDir: '',
     exportIntervalMs: 60 * 1000,
     collectionMode: 'live',
@@ -3250,19 +3251,23 @@ function checkAutoDowngrade() {
   if (Notification.isSupported()) new Notification({ title, body }).show();
 }
 // Samples today's sessions once a minute and warns when one burns tokens far
-// faster than usual, or has grown so heavy that every message re-reads a lot.
+// faster than usual, has grown so heavy that every message re-reads a lot, or
+// is about to lose its 1-hour prompt cache after sitting idle.
 const runawayDetector = createRunawayDetector();
 const heavySessionWatch = createHeavySessionWatch();
+const cacheExpiryWatch = createCacheExpiryWatch();
 function checkLiveSessions() {
   const runaway = settings?.runawayAlertsEnabled === true;
   const heavy = settings?.heavySessionAlertsEnabled === true;
-  if ((!runaway && !heavy) || !latestStats) return;
+  const expiry = settings?.cacheExpiryAlertsEnabled === true;
+  if ((!runaway && !heavy && !expiry) || !latestStats) return;
   const locale = trayMenuLocale();
   const notify = (titleKey, bodyKey, params) => {
     if (Notification.isSupported()) new Notification({ title: translate(locale, titleKey), body: translate(locale, bodyKey, params) }).show();
   };
   const now = Date.now();
-  for (const session of Object.values(completeLocalSyncStats(latestStats).periods?.today?.sessions || {})) {
+  const periods = completeLocalSyncStats(latestStats).periods;
+  for (const session of Object.values(periods?.today?.sessions || {})) {
     const label = session.title || session.sessionId;
     const alert = runaway && runawayDetector.observe({
       key: `${session.client}:${session.sessionId}`,
@@ -3281,6 +3286,14 @@ function checkLiveSessions() {
     if (heavy && heavySessionWatch(session, now)) {
       notify('heavySession.title', 'heavySession.body', { session: label, tokens: Math.round(session.contextTokens / 1000) });
     }
+  }
+  if (!expiry) return;
+  // Month rows, not today's: a chat used at 23:20 still expires at 00:20.
+  // Known gap: in the first hour of a new month, chats from the last day of the
+  // previous month are missed; scan allTime rows here if that ever matters.
+  for (const session of Object.values(periods?.month?.sessions || {})) {
+    const tokens = cacheExpiryWatch(session, now);
+    if (tokens) notify('cacheExpiry.title', 'cacheExpiry.body', { session: session.title || session.sessionId, tokens: Math.round(tokens / 1000) });
   }
 }
 let statsPushSource = null;

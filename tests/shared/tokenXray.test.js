@@ -7,7 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const {
-  analyzeXray, auditClaudeLogs, auditClaudeTurns, createHeavySessionWatch, readClaudeTurns
+  analyzeXray, auditClaudeLogs, auditClaudeTurns, createCacheExpiryWatch, createHeavySessionWatch, readClaudeTurns
 } = require('../../src/shared/tokenXray');
 
 const MIN = 60_000;
@@ -190,4 +190,69 @@ test('heavy-session watch speaks once per active heavy session', () => {
   assert.equal(watch(s('heavy', 180_000, 1), now), true);
   assert.equal(watch(s('heavy', 220_000, 0), now + MIN), false, 'already told');
   assert.equal(watch({ client: 'codex', sessionId: 'x', contextTokens: 0, lastUsedAt: '' }, now), false);
+});
+
+// Mirrors the real collector: a session's context size is only read while it
+// was used in the last 30 minutes, and is 0 after that.
+const CONTEXT_WINDOW_MIN = 30;
+function idleChat(id, observedAt, now, { context = 180_000, ttlSeconds = 3600, lastUsedAt = observedAt } = {}) {
+  const idleMin = (now - Date.parse(observedAt)) / MIN;
+  return {
+    client: 'claude',
+    sessionId: id,
+    lastUsedAt,
+    contextTokens: idleMin < CONTEXT_WINDOW_MIN ? context : 0,
+    promptCache: { ttlSeconds, observedAt }
+  };
+}
+// Feeds the watch once a minute, like the app does, and returns the minutes it warned at.
+function runIdle(watch, id, observedAt, minutes, options) {
+  const start = Date.parse(observedAt);
+  const warned = [];
+  for (let m = 0; m <= minutes; m++) {
+    const tokens = watch(idleChat(id, observedAt, start + m * MIN, options), start + m * MIN);
+    if (tokens) warned.push([m, tokens]);
+  }
+  return warned;
+}
+
+test('cache-expiry watch warns once, in the last 5 minutes before a big 1-hour cache expires', () => {
+  const at = '2026-10-01T12:00:00.000Z';
+  assert.deepEqual(runIdle(createCacheExpiryWatch(), 'a', at, 90), [[55, 180_000]],
+    'one warning at minute 55, with the size remembered from when the chat was active');
+  assert.deepEqual(runIdle(createCacheExpiryWatch(), 'small', at, 90, { context: 99_999 }), [], 'small chats reload cheaply');
+  assert.deepEqual(runIdle(createCacheExpiryWatch(), 'short', at, 90, { ttlSeconds: 300 }), [], '5-minute caches are never warned');
+});
+
+test('cache-expiry watch stays quiet when it never saw the chat active, or when the cache already expired', () => {
+  const watch = createCacheExpiryWatch();
+  const observed = Date.parse('2026-10-01T12:00:00.000Z');
+  const at = new Date(observed).toISOString();
+  assert.equal(watch(idleChat('late', at, observed + 56 * MIN), observed + 56 * MIN), 0, 'app started after the size was no longer read');
+  const woke = createCacheExpiryWatch();
+  woke(idleChat('b', at, observed), observed);
+  assert.equal(woke(idleChat('b', at, observed + 61 * MIN), observed + 61 * MIN), 0, 'woke from sleep after expiry: too late to help');
+  assert.equal(watch({ client: 'codex', sessionId: 'c', contextTokens: 500_000 }, observed), 0, 'no cache data');
+  assert.equal(watch({ client: 'claude', sessionId: 'd', contextTokens: 500_000, promptCache: { ttlSeconds: 3600 } }, observed), 0, 'no refresh time');
+});
+
+test('cache-expiry watch warns again after the chat is used and goes quiet again', () => {
+  const watch = createCacheExpiryWatch();
+  const first = '2026-10-01T12:00:00.000Z';
+  assert.equal(runIdle(watch, 'a', first, 56).length, 1);
+  const replied = new Date(Date.parse(first) + 57 * MIN).toISOString();
+  assert.deepEqual(runIdle(watch, 'a', replied, 90), [[55, 180_000]], 'new idle spell, new warning');
+});
+
+test('cache-expiry watch stays quiet while a newer message is still waiting for its reply', () => {
+  const at = '2026-10-01T12:00:00.000Z';
+  const busy = new Date(Date.parse(at) + 40 * MIN).toISOString();
+  assert.deepEqual(runIdle(createCacheExpiryWatch(), 'a', at, 90, { lastUsedAt: busy }), []);
+});
+
+test('cache-expiry watch can use a short lifetime for a live check', () => {
+  const watch = createCacheExpiryWatch({ ttlMs: 2 * MIN, leadMs: MIN, minContext: 0 });
+  const at = '2026-10-01T12:00:00.000Z';
+  assert.deepEqual(runIdle(watch, 'a', at, 5), [[1, 180_000]]);
+  assert.deepEqual(runIdle(watch, 'b', at, 5, { ttlSeconds: 300 }), [], 'still only 1-hour caches');
 });

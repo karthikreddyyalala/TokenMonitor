@@ -220,4 +220,43 @@ function createHeavySessionWatch({ minContext = 150_000, activeWithinMs = 5 * MI
   };
 }
 
-module.exports = { analyzeXray, auditClaudeLogs, auditClaudeTurns, createHeavySessionWatch, readClaudeTurns };
+// Warns once per idle spell, in the last few minutes before a big chat's
+// 1-hour prompt cache expires, while one message can still keep it warm.
+// Returns the chat's context size for the notification, or 0 for no warning.
+//
+// The collector stops reading a session's context size 30 minutes after its
+// last use, so by the warning window it reads 0. The watch is fed every minute
+// and remembers the size it saw while the chat was active; a chat it never saw
+// active (the app started later) is skipped rather than guessed at.
+// After expiry it stays quiet: the reload can no longer be avoided. 5-minute
+// caches are skipped because their warning would land right after the reply.
+// ttlMs replaces the 1-hour lifetime only for a live check with short timers.
+function createCacheExpiryWatch({ minContext = 100_000, leadMs = 5 * MIN, ttlMs = null } = {}) {
+  const spells = new Map();
+  return (session, now = Date.now()) => {
+    const cache = session.promptCache;
+    if (cache?.ttlSeconds !== 3600) return 0;
+    const observed = Date.parse(cache.observedAt);
+    if (!Number.isFinite(observed)) return 0;
+    const key = `${session.client}:${session.sessionId}`;
+    let spell = spells.get(key);
+    if (spell?.observedAt !== cache.observedAt) {
+      spell = { observedAt: cache.observedAt, contextTokens: 0, warned: false };
+      spells.set(key, spell);
+    }
+    if (session.contextTokens > 0) spell.contextTokens = session.contextTokens;
+    const idle = now - observed;
+    const ttl = ttlMs ?? cache.ttlSeconds * 1000;
+    if (idle >= ttl) {
+      spells.delete(key);
+      return 0;
+    }
+    // A newer message than the last cache refresh means a reply is on its way.
+    if (Date.parse(session.lastUsedAt) - observed > 2 * MIN) return 0;
+    if (spell.warned || idle < ttl - leadMs || !(spell.contextTokens >= minContext)) return 0;
+    spell.warned = true;
+    return spell.contextTokens;
+  };
+}
+
+module.exports = { analyzeXray, auditClaudeLogs, auditClaudeTurns, createCacheExpiryWatch, createHeavySessionWatch, readClaudeTurns };
