@@ -84,7 +84,7 @@ export function renderReport(report: Report, { color, days, timeZone }: RenderOp
   for (const c of report.heaviest) {
     const turns = `${c.turns.toLocaleString('en-US')} ${c.turns === 1 ? 'turn' : 'turns'}`;
     const peak = `peak ${c.peakContext > 0 ? tokens(c.peakContext) : '-'}`;
-    out.push(`    ${money(c.cost).padStart(10)}  ${turns.padStart(10)}  ${dim(peak.padEnd(11))} ${chatLabel(c)}`);
+    out.push(`    ${money(c.cost).padStart(10)}  ${turns.padStart(11)}  ${dim(peak.padEnd(11))} ${chatLabel(c)}`);
   }
 
   if (report.unpricedTurns > 0) {
