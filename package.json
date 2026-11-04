@@ -1,6 +1,6 @@
 {
   "name": "token-monitor",
-  "productName": "Token Monitor",
+  "productName": "Token X-ray",
   "version": "0.84.1",
   "description": "Live token & cost widget for Claude Code, Codex & Hermes — local-first, optional multi-device sync.",
   "main": "src/electron/main.js",
@@ -39,8 +39,8 @@
   },
   "build": {
     "beforePack": "scripts/build-windows-dock.js",
-    "appId": "com.javis.tokenmonitor",
-    "productName": "Token Monitor",
+    "appId": "io.github.karthikreddyyalala.tokenxray",
+    "productName": "Token X-ray",
     "directories": {
       "output": "dist"
     },
@@ -130,8 +130,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "Javis603",
-        "repo": "token-monitor"
+        "owner": "karthikreddyyalala",
+        "repo": "TokenMonitor"
       }
     ]
   },
@@ -150,15 +150,15 @@
     "local-first",
     "self-hosted"
   ],
-  "author": "Javis",
+  "author": "Karthik Reddy (based on Token Monitor by Javis)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Javis603/token-monitor.git"
+    "url": "git+https://github.com/karthikreddyyalala/TokenMonitor.git"
   },
-  "homepage": "https://github.com/Javis603/token-monitor#readme",
+  "homepage": "https://github.com/karthikreddyyalala/TokenMonitor#readme",
   "bugs": {
-    "url": "https://github.com/Javis603/token-monitor/issues"
+    "url": "https://github.com/karthikreddyyalala/TokenMonitor/issues"
   },
   "dependencies": {
     "@xhayper/discord-rpc": "^1.5.1",

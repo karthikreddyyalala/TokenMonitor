@@ -381,7 +381,7 @@ test('the external URL allowlist admits exactly the provider consoles it should'
     'https://status.cursor.com/',
     'https://status.deepseek.com/',
     'https://github.com/junhoyeo/tokscale',
-    'https://github.com/Javis603/token-monitor/releases',
+    'https://github.com/karthikreddyyalala/TokenMonitor/releases',
     'https://www.npmjs.com/package/@tokscale/cli',
     'https://javis-ai.com/token-monitor',
     'https://www.javis-ai.com/token-monitor/'

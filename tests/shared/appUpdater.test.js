@@ -54,7 +54,7 @@ test('the automatic downloader stands down once an attempt is spent', () => {
 });
 
 test('source-mode release checks use the public GitHub page instead of the REST API', () => {
-  assert.equal(RELEASES_LATEST_URL, 'https://github.com/Javis603/token-monitor/releases/latest');
+  assert.equal(RELEASES_LATEST_URL, 'https://github.com/karthikreddyyalala/TokenMonitor/releases/latest');
 });
 
 test('source-mode release checks negotiate public release JSON without authentication', async () => {
@@ -606,13 +606,13 @@ test('extractUpdaterReleaseHistory keeps every release up to the latest, newest 
     releaseNoteHistory: [
       {
         version: '0.71.0',
-        htmlUrl: 'https://github.com/Javis603/token-monitor/releases/tag/v0.71.0',
+        htmlUrl: 'https://github.com/karthikreddyyalala/TokenMonitor/releases/tag/v0.71.0',
         releaseNotes: { en: [{ title: 'Fixed', items: ['Seventy-one.'] }] }
       },
-      { version: '0.70.0', htmlUrl: 'https://github.com/Javis603/token-monitor/releases/tag/v0.70.0' },
+      { version: '0.70.0', htmlUrl: 'https://github.com/karthikreddyyalala/TokenMonitor/releases/tag/v0.70.0' },
       {
         version: '0.69.0',
-        htmlUrl: 'https://github.com/Javis603/token-monitor/releases/tag/v0.69.0',
+        htmlUrl: 'https://github.com/karthikreddyyalala/TokenMonitor/releases/tag/v0.69.0',
         releaseNotes: { en: [{ title: 'Fixed', items: ['Sixty-nine.'] }] }
       }
     ],
@@ -1002,7 +1002,7 @@ test('parseLatestReleasePayload returns normalized object for valid payload', ()
     version: '0.1.3',
     tag: 'v0.1.3',
     name: 'Token Monitor 0.1.3',
-    htmlUrl: 'https://github.com/Javis603/token-monitor/releases/tag/v0.1.3',
+    htmlUrl: 'https://github.com/karthikreddyyalala/TokenMonitor/releases/tag/v0.1.3',
     publishedAt: '2026-05-26T12:00:00Z',
     releaseNotes: {
       en: [{ title: 'Added', items: ['Release summaries in the app.'] }]
@@ -1031,10 +1031,10 @@ test('parseLatestReleasePayload builds a trusted release URL from the validated 
   assert.equal(parseLatestReleasePayload({
     tag_name: 'v0.1.3',
     html_url: 'http://example.com'
-  }).htmlUrl, 'https://github.com/Javis603/token-monitor/releases/tag/v0.1.3');
+  }).htmlUrl, 'https://github.com/karthikreddyyalala/TokenMonitor/releases/tag/v0.1.3');
   assert.equal(parseLatestReleasePayload({
     tag_name: 'v0.1.3'
-  }).htmlUrl, 'https://github.com/Javis603/token-monitor/releases/tag/v0.1.3');
+  }).htmlUrl, 'https://github.com/karthikreddyyalala/TokenMonitor/releases/tag/v0.1.3');
 });
 
 test('latestFromUpdaterInfo normalizes provider metadata and release notes', () => {
@@ -1048,7 +1048,7 @@ test('latestFromUpdaterInfo normalizes provider metadata and release notes', () 
     version: '0.40.0',
     tag: 'v0.40.0',
     name: 'Token Monitor 0.40.0',
-    htmlUrl: 'https://github.com/Javis603/token-monitor/releases/tag/v0.40.0',
+    htmlUrl: 'https://github.com/karthikreddyyalala/TokenMonitor/releases/tag/v0.40.0',
     publishedAt: '2026-08-03T08:00:00Z',
     releaseNotes: { en: [{ title: 'Fixed', items: ['Updater fix.'] }] }
   });

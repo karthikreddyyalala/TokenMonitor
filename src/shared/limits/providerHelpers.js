@@ -10,7 +10,7 @@ const path = require('node:path');
 const { appVersion } = require('../appVersion');
 const { abortError } = require('../probeDeadline');
 
-const TOKEN_MONITOR_USER_AGENT = `token-monitor/${appVersion()} (+https://github.com/Javis603/token-monitor)`;
+const TOKEN_MONITOR_USER_AGENT = `token-monitor/${appVersion()} (+https://github.com/karthikreddyyalala/TokenMonitor)`;
 
 function nowIso(nowMs) {
   return new Date(nowMs).toISOString();

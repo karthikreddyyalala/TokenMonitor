@@ -842,11 +842,11 @@ test('macOS Widget model vendor marks cover the Kimi coding-plan ids', () => {
   );
 });
 
-test('macOS Widget packaging keeps the canonical Token Monitor app identity', () => {
+test('macOS Widget packaging keeps the canonical app identity', () => {
   assert.equal(packageJson.scripts['mac:local'], undefined);
   assert.equal(packageJson.scripts['mac:local:open'], undefined);
-  assert.equal(packageJson.productName, 'Token Monitor');
-  assert.equal(packageJson.build.productName, 'Token Monitor');
+  assert.equal(packageJson.productName, 'Token X-ray');
+  assert.equal(packageJson.build.productName, 'Token X-ray');
 });
 
 test('Widget build provenance fields are injected into the extension Info.plist', () => {

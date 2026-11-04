@@ -34,7 +34,7 @@ function desktopFileContents(appImagePath) {
   return [
     '[Desktop Entry]',
     'Type=Application',
-    'Name=Token Monitor',
+    'Name=Token X-ray',
     `Exec=${quoteExecArgument(appImagePath)}`,
     'X-GNOME-Autostart-enabled=true',
     ''

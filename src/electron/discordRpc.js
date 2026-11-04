@@ -6,7 +6,7 @@ const compactTokens = require('../shared/compactTokens');
 const { CLIENT_LABELS } = require('../shared/clientCatalog');
 
 const CLIENT_ID = '1507034330436862062';
-const GITHUB_URL = 'https://github.com/Javis603/token-monitor';
+const GITHUB_URL = 'https://github.com/karthikreddyyalala/TokenMonitor';
 const UPDATE_MIN_INTERVAL_MS = 15000;
 const RECONNECT_DELAY_MS = 30000;
 
@@ -41,12 +41,12 @@ function buildPayload(stats, currency = 'USD', compactTokenUnits = 'western', lo
   const base = {
     type: 0,
     largeImageKey: 'logo',
-    largeImageText: 'Token Monitor',
+    largeImageText: 'Token X-ray',
     startTimestamp,
     buttons: [{ label: 'View on GitHub', url: GITHUB_URL }]
   };
   if (totalTokens === 0) {
-    return { ...base, details: 'Token Monitor', state: 'No usage today' };
+    return { ...base, details: 'Token X-ray', state: 'No usage today' };
   }
   const top = topClient(today);
   const label = top && Object.hasOwn(CLIENT_LABELS, top) ? CLIENT_LABELS[top] : (top || 'Active');

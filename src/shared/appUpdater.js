@@ -2,7 +2,7 @@
 
 const semver = require('semver');
 
-const GITHUB_REPO = 'Javis603/token-monitor';
+const GITHUB_REPO = 'karthikreddyyalala/TokenMonitor';
 const RELEASES_URL = `https://github.com/${GITHUB_REPO}/releases`;
 const RELEASES_LATEST_URL = `${RELEASES_URL}/latest`;
 const REQUEST_TIMEOUT_MS = 10 * 1000;

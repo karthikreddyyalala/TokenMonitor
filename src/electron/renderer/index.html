@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Token Monitor</title>
+    <title>Token X-ray</title>
     <script src="floatingBubbleBoot.js"></script>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="edgeDock/composer.css" />
@@ -13,7 +13,7 @@
     <main class="shell" tabindex="-1">
       <header class="titlebar">
         <div>
-          <div class="app-title"><span class="app-title-text">Token Monitor</span><span class="app-title-mark" aria-hidden="true">Σ</span><span id="liveDot" class="live-dot" aria-label="Stream offline"></span><span id="tokenRateReveal" class="token-rate-reveal" aria-hidden="true"></span><div id="pluginPageHeading" class="plugin-page-heading hidden"></div><span class="app-title-measure" aria-hidden="true">Token Monitor</span></div>
+          <div class="app-title"><span class="app-title-text">Token X-ray</span><span class="app-title-mark" aria-hidden="true">Σ</span><span id="liveDot" class="live-dot" aria-label="Stream offline"></span><span id="tokenRateReveal" class="token-rate-reveal" aria-hidden="true"></span><div id="pluginPageHeading" class="plugin-page-heading hidden"></div><span class="app-title-measure" aria-hidden="true">Token X-ray</span></div>
           <div id="status" class="status">Starting</div>
         </div>
         <div class="title-controls">
@@ -125,13 +125,13 @@
                       <div class="maintenance-version-item"><span data-i18n="settings.tokscale.installed">Installed</span><strong id="tokscaleInstalled" data-i18n="settings.common.checking">Checking...</strong></div>
                       <div id="tokscaleBundledBuildRow" class="maintenance-version-item hidden"><span data-i18n="settings.tokscale.bundledBuild">Bundled build</span><strong id="tokscaleBundledBuild"></strong></div>
                     </div>
-                    <p class="settings-note"><span data-i18n="settings.tokscale.noteBefore">Token Monitor uses tokscale (MIT, open-source) to read token data.</span> <button id="openTokscaleLinkButton" type="button" class="inline-link" data-i18n="settings.tokscale.learnMore">Learn more</button></p>
+                    <p class="settings-note"><span data-i18n="settings.tokscale.noteBefore">Token X-ray uses tokscale (MIT, open-source) to read token data.</span> <button id="openTokscaleLinkButton" type="button" class="inline-link" data-i18n="settings.tokscale.learnMore">Learn more</button></p>
                   </div>
                   <div id="networkProxyGroup" class="settings-group advanced-settings-block maintenance-panel">
                     <div class="settings-group-header maintenance-header"><span data-i18n="settings.proxy.title">Network proxy</span><span id="networkProxySource"></span></div>
                     <label><span data-i18n="settings.proxy.url">Proxy URL</span><input id="proxyUrlInput" type="text" spellcheck="false" autocomplete="off" placeholder="http://127.0.0.1:7890" aria-describedby="networkProxyNote" /></label>
                     <label><span data-i18n="settings.proxy.noProxy">Bypass proxy for</span><input id="noProxyInput" type="text" spellcheck="false" autocomplete="off" placeholder="example.com, .internal.net, 10.0.0.1:8080" data-i18n-placeholder="settings.proxy.noProxyPlaceholder" /></label>
-                    <p id="networkProxyNote" class="settings-note" data-i18n="settings.proxy.note">Used only for Token Monitor's own limit and account requests; sign-ins in your browser or a CLI are not affected. While set, it replaces HTTP(S)_PROXY and NO_PROXY for these requests, so list any hosts to bypass here; local addresses always stay direct. Leave empty to use the environment or system proxy.</p>
+                    <p id="networkProxyNote" class="settings-note" data-i18n="settings.proxy.note">Used only for Token X-ray's own limit and account requests; sign-ins in your browser or a CLI are not affected. While set, it replaces HTTP(S)_PROXY and NO_PROXY for these requests, so list any hosts to bypass here; local addresses always stay direct. Leave empty to use the environment or system proxy.</p>
                     <div id="proxyUrlError" class="hub-status error" role="alert" hidden></div>
                   </div>
                   <div class="settings-group advanced-settings-block advanced-config-row">
@@ -144,7 +144,7 @@
               </div>
             </div>
             <div class="settings-subgroup about-settings">
-              <div class="settings-group-header"><span data-i18n="settings.about.title">About Token Monitor</span><span id="aboutVersion">—</span></div>
+              <div class="settings-group-header"><span data-i18n="settings.about.title">About Token X-ray</span><span id="aboutVersion">—</span></div>
               <p class="settings-note" data-i18n="settings.about.description">Open-source AI tool token usage monitor, licensed under MIT.</p>
               <div class="about-settings-links">
                 <button id="openRepositoryButton" type="button" class="inline-link" data-i18n="settings.about.repository">GitHub</button>
@@ -431,7 +431,7 @@
                     </select>
                   </label>
                   <div id="trayComposer" class="tray-composer hidden" data-surface="tray"></div>
-                  <label class="checkbox-label settings-item"><span class="settings-item-text"><span class="settings-item-title" data-i18n="settings.display.trayProviderBadge">Show Token Monitor badge on provider icons</span></span><input id="showTrayProviderBadgeInput" type="checkbox" /></label>
+                  <label class="checkbox-label settings-item"><span class="settings-item-text"><span class="settings-item-title" data-i18n="settings.display.trayProviderBadge">Show Token X-ray badge on provider icons</span></span><input id="showTrayProviderBadgeInput" type="checkbox" /></label>
                   <label class="checkbox-label settings-item"><span class="settings-item-text"><span class="settings-item-title" data-i18n="settings.display.trayMode">Tray-only mode</span></span><input id="trayModeInput" type="checkbox" /></label>
                   <div id="trayOptions" class="presence-feature-body hidden">
                     <p class="settings-note" data-i18n="settings.display.trayNote">Hide the main window; show a popover from the macOS menu bar or Windows system tray.</p>
@@ -560,7 +560,7 @@
                         </div>
                       </div>
                     </div>
-                    <p id="fontSettingsNote" class="settings-note" data-i18n="settings.appearance.fontNote">App default uses Token Monitor's built-in typography. System UI uses your operating system's interface font. Choose Custom… to enter a font family.</p>
+                    <p id="fontSettingsNote" class="settings-note" data-i18n="settings.appearance.fontNote">App default uses Token X-ray's built-in typography. System UI uses your operating system's interface font. Choose Custom… to enter a font family.</p>
                   </div>
                   <label class="checkbox-label settings-item"><span class="settings-item-text"><span class="settings-item-title" data-i18n="settings.appearance.liveIndicator">Live Indicator</span></span><input id="liveDotInput" type="checkbox" /></label>
                   <label class="checkbox-label settings-item"><span class="settings-item-text"><span class="settings-item-title" data-i18n="settings.appearance.toolIcons">Tool Icons</span></span><input id="toolIconsInput" type="checkbox" /></label>
@@ -987,7 +987,7 @@
                 </span>
               </button>
               <div id="cursorSettingsDetails" class="cursor-settings-details hidden">
-                <p class="settings-note" data-i18n="settings.cursor.accountsNote">Token Monitor automatically detects accounts signed in through the Cursor desktop app. Uncheck an account to stop monitoring its limits; account-level token usage still includes every saved account.</p>
+                <p class="settings-note" data-i18n="settings.cursor.accountsNote">Token X-ray automatically detects accounts signed in through the Cursor desktop app. Uncheck an account to stop monitoring its limits; account-level token usage still includes every saved account.</p>
                 <p id="cursorAgentActiveNote" class="settings-note hidden" data-i18n="settings.cursor.agentActive">Stop the headless agent before adding or removing Cursor accounts.</p>
                 <div id="cursorAccountList" class="managed-account-list"></div>
                 <div id="cursorManualPanel" class="opencode-add-form">
@@ -1594,12 +1594,12 @@
                 <div id="hubStatusRow" class="hub-status"></div>
                 <div id="hubAddressList" class="hub-address-list"></div>
                 <p class="settings-note" data-i18n="settings.sync.hostNote">Other devices connect using one of the URLs above with the shared secret. macOS / Windows may prompt to allow incoming connections the first time. For cross-network use, run Tailscale or ZeroTier on both sides - the virtual IP works the same.</p>
-                <p class="settings-note hub-warning" data-i18n="settings.sync.hostWarning">The hub runs while Token Monitor is running. Quitting (not just closing the window) stops the hub for all connected devices.</p>
+                <p class="settings-note hub-warning" data-i18n="settings.sync.hostWarning">The hub runs while Token X-ray is running. Quitting (not just closing the window) stops the hub for all connected devices.</p>
               </div>
               <div id="icloudFields" class="hub-mode-fields hidden">
                 <div id="icloudStatus" class="hub-status" role="status" aria-live="polite"></div>
                 <div id="icloudRootStatus" class="icloud-root-status"></div>
-                <p class="settings-note" data-i18n="settings.sync.icloudNote">Sync usage, limits, history, devices and subscriptions across Macs signed into the same Apple ID. No Token Monitor server is used; updates may take a moment to appear.</p>
+                <p class="settings-note" data-i18n="settings.sync.icloudNote">Sync usage, limits, history, devices and subscriptions across Macs signed into the same Apple ID. No Token X-ray server is used; updates may take a moment to appear.</p>
               </div>
               <div id="syncDeviceSettings" class="sync-device-settings">
                 <label><span data-i18n="settings.sync.deviceId">Device ID</span><input id="deviceIdInput" type="text" spellcheck="false" placeholder="auto (hostname)" data-i18n-placeholder="settings.sync.deviceIdPlaceholder" /></label>
@@ -1768,7 +1768,7 @@
         <button id="syncContentConfirm" class="sync-content-primary" type="button" data-i18n="settings.sync.content.enableTitles">Enable title sync</button>
       </div>
     </dialog>
-    <button id="floatingBubbleTab" class="floating-bubble-tab" type="button" aria-label="Show Token Monitor" data-i18n-aria-label="floatingBubble.expand">
+    <button id="floatingBubbleTab" class="floating-bubble-tab" type="button" aria-label="Show Token X-ray" data-i18n-aria-label="floatingBubble.expand">
       <span id="floatingBubbleContent" aria-hidden="true">Σ</span>
     </button>
     <script src="../../shared/clientCatalog.js"></script>

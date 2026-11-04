@@ -14,7 +14,7 @@ function sharedDataDir(options = {}) {
   if (env.TOKEN_MONITOR_SHARED_DIR) return env.TOKEN_MONITOR_SHARED_DIR;
   const platform = options.platform || process.platform;
   const homeDir = options.homeDir || os.homedir();
-  const productName = 'Token Monitor';
+  const productName = 'Token X-ray';
   if (platform === 'darwin') return path.join(homeDir, 'Library', 'Application Support', productName);
   if (platform === 'win32') return path.join(env.APPDATA || path.join(homeDir, 'AppData', 'Roaming'), productName);
   return path.join(env.XDG_CONFIG_HOME || path.join(homeDir, '.config'), productName);

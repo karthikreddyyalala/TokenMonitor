@@ -38,7 +38,7 @@ async function requestJson(url, apiKey, deps = {}) {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       Accept: 'application/json',
-      'HTTP-Referer': 'https://github.com/Javis603/token-monitor',
+      'HTTP-Referer': 'https://github.com/karthikreddyyalala/TokenMonitor',
       'X-OpenRouter-Title': 'Token Monitor'
     },
     signal: deps.signal
